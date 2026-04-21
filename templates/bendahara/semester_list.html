@@ -1,0 +1,156 @@
+{% extends 'bendahara/base.html' %}
+
+{% block title %}Manajemen Semester{% endblock %}
+{% block page_title %}Manajemen Semester{% endblock %}
+{% block page_subtitle %}Kelola seluruh periode akademik yang menjadi dasar tagihan, pembayaran, dan laporan bendahara.{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+    <!-- Info Cards -->
+    <div class="grid gap-4 md:grid-cols-3">
+        <div class="panel-card rounded-3xl p-5">
+            <div class="text-xs uppercase text-slate-400 tracking-widest">Pengaturan</div>
+            <div class="mt-2 text-lg font-semibold text-slate-900">Kelola semester</div>
+            <p class="text-sm text-slate-500 mt-2">Atur periode aktif untuk sistem pembayaran.</p>
+        </div>
+
+        <div class="panel-card rounded-3xl p-5">
+            <div class="text-xs uppercase text-slate-400 tracking-widest">Kontrol</div>
+            <div class="mt-2 text-lg font-semibold text-slate-900">Status aktif</div>
+            <p class="text-sm text-slate-500 mt-2">Hanya satu semester yang aktif digunakan.</p>
+        </div>
+
+        <div class="panel-card rounded-3xl p-5 bg-[linear-gradient(135deg,rgba(37,99,235,0.08),rgba(16,185,129,0.08))]">
+            <div class="text-xs uppercase text-slate-400 tracking-widest">Aksi</div>
+            <div class="mt-2 text-lg font-semibold text-slate-900">Tambah semester</div>
+            <p class="text-sm text-slate-500 mt-2">Buat semester baru untuk periode berikutnya.</p>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="flex justify-between items-center">
+        <div>
+            <h3 class="text-xl font-semibold text-slate-900">Daftar Semester</h3>
+            <p class="text-sm text-slate-500">Kelola semua periode akademik</p>
+        </div>
+
+        <a href="{% url 'bendahara:semester_create' %}" 
+           class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
+            + Tambah Semester
+        </a>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="rounded-xl px-4 py-3 text-sm font-medium
+                        {% if message.tags == 'success' %}bg-green-100 text-green-700
+                        {% elif message.tags == 'error' %}bg-red-100 text-red-700
+                        {% else %}bg-blue-100 text-blue-700{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Table -->
+    <div class="panel-card overflow-hidden rounded-3xl">
+
+        <div class="overflow-x-auto data-table">
+            <table class="min-w-full divide-y divide-slate-200">
+
+                <thead class="bg-slate-50/80">
+                    <tr>
+                        <th class="px-6 py-3 text-xs text-slate-600">Nama</th>
+                        <th class="px-6 py-3 text-xs text-slate-600">Tahun</th>
+                        <th class="px-6 py-3 text-xs text-slate-600">Semester</th>
+                        <th class="px-6 py-3 text-xs text-slate-600">Mulai</th>
+                        <th class="px-6 py-3 text-xs text-slate-600">Selesai</th>
+                        <th class="px-6 py-3 text-xs text-slate-600">Status</th>
+                        <th class="px-6 py-3 text-xs text-slate-600">Aksi</th>
+                    </tr>
+                </thead>
+
+                <tbody class="divide-y divide-slate-200 bg-white">
+                    {% for semester in semester_list %}
+                    <tr class="hover:bg-blue-50/40">
+
+                        <td class="px-6 py-4 font-semibold text-slate-900">
+                            {{ semester.nama }}
+                        </td>
+
+                        <td class="px-6 py-4 text-sm text-slate-700">
+                            {{ semester.tahun_ajaran }}
+                        </td>
+
+                        <td class="px-6 py-4">
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold
+                                {% if semester.semester|lower == 'ganjil' %}
+                                    bg-blue-100 text-blue-700
+                                {% else %}
+                                    bg-green-100 text-green-700
+                                {% endif %}">
+                                {{ semester.semester }}
+                            </span>
+                        </td>
+
+                        <td class="px-6 py-4 text-sm">
+                            {{ semester.tanggal_mulai|date:"d M Y" }}
+                        </td>
+
+                        <td class="px-6 py-4 text-sm">
+                            {{ semester.tanggal_selesai|date:"d M Y" }}
+                        </td>
+
+                        <td class="px-6 py-4">
+                            {% if semester.aktif %}
+                                <span class="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
+                                    Aktif
+                                </span>
+                            {% else %}
+                                <span class="px-3 py-1 rounded-full bg-slate-200 text-slate-600 text-xs font-semibold">
+                                    Nonaktif
+                                </span>
+                            {% endif %}
+                        </td>
+
+                        <td class="px-6 py-4">
+                            <div class="flex gap-2">
+
+                                <a href="{% url 'bendahara:semester_update' semester.pk %}" 
+                                   class="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold">
+                                    Edit
+                                </a>
+
+                                <a href="{% url 'bendahara:semester_toggle' semester.pk %}" 
+                                   class="px-3 py-2 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold">
+                                    Toggle
+                                </a>
+
+                                <a href="{% url 'bendahara:semester_delete' semester.pk %}" 
+                                   class="px-3 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold"
+                                   onclick="return confirm('Yakin hapus semester ini?');">
+                                    Hapus
+                                </a>
+
+                            </div>
+                        </td>
+
+                    </tr>
+
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-8 text-center text-slate-500">
+                            Belum ada data semester.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

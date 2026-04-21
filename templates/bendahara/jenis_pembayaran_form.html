@@ -1,0 +1,112 @@
+{% extends 'bendahara/base.html' %}
+
+{% block title %}Form Jenis Pembayaran{% endblock %}
+{% block page_title %}Form Jenis Pembayaran{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+        <div class="panel-card rounded-3xl p-6">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Master Pembayaran</div>
+            <h3 class="mt-3 text-xl font-semibold text-slate-900">
+                {% if form.instance.pk %}Edit Jenis Pembayaran{% else %}Tambah Jenis Pembayaran{% endif %}
+            </h3>
+            <p class="mt-2 text-sm text-slate-500">
+                Jenis pembayaran ini akan dipakai operator saat membuat tagihan untuk siswa.
+            </p>
+        </div>
+        <div class="panel-card rounded-3xl p-6 bg-[linear-gradient(135deg,rgba(16,185,129,0.08),rgba(184,104,46,0.1))]">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Catatan</div>
+            <div class="mt-3 space-y-2 text-sm text-slate-600">
+                <div>1. Gunakan nama yang jelas seperti SPP, Daftar Ulang, atau Seragam.</div>
+                <div>2. Nominal default akan membantu operator saat membuat tagihan.</div>
+                <div>3. Nonaktifkan jika jenis pembayaran sudah tidak dipakai.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-4xl panel-card rounded-3xl p-6">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+                <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {{ form.non_field_errors }}
+                </div>
+            {% endif %}
+
+            <div class="grid gap-5 md:grid-cols-2">
+                {% for field in form %}
+                    <div class="{% if field.field.widget.input_type == 'checkbox' %}md:col-span-2{% endif %}">
+                        {% if field.field.widget.input_type == "checkbox" %}
+                            <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                                <label class="flex items-center gap-3 text-sm font-medium text-slate-700">
+                                    {{ field }}
+                                    {{ field.label }}
+                                </label>
+                            </div>
+                        {% else %}
+                            <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-2">
+                                {{ field.label }}
+                            </label>
+                            {{ field }}
+                        {% endif %}
+
+                        {% if field.help_text %}
+                            <p class="mt-2 text-xs text-slate-500">{{ field.help_text }}</p>
+                        {% endif %}
+
+                        {% if field.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ field.errors|striptags }}</p>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                <button type="submit" class="inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm">
+                    Simpan Jenis Pembayaran
+                </button>
+                <a href="{% url 'bendahara:jenis_pembayaran_list' %}" class="inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold">
+                    Kembali
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    #id_nama,
+    #id_nominal_default,
+    #id_deskripsi,
+    #id_jumlah_bulan_per_semester {
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        border-radius: 1rem;
+        padding: 0.85rem 1rem;
+        outline: none;
+        background: white;
+    }
+
+    #id_deskripsi {
+        min-height: 130px;
+    }
+
+    #id_nama:focus,
+    #id_nominal_default:focus,
+    #id_deskripsi:focus,
+    #id_jumlah_bulan_per_semester:focus {
+        border-color: #10b981;
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
+    }
+
+    #id_aktif,
+    #id_wajib_per_semester,
+    #id_is_bulanan {
+        height: 1rem;
+        width: 1rem;
+        border-radius: 0.35rem;
+        border: 1px solid #cbd5e1;
+    }
+</style>
+{% endblock %}

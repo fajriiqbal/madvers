@@ -1,0 +1,46 @@
+{% extends 'bendahara/base.html' %}
+
+{% block title %}Hapus Semester{% endblock %}
+{% block page_title %}Konfirmasi Hapus Semester{% endblock %}
+{% block page_subtitle %}Tinjau kembali dampak penghapusan semester sebelum data dihapus dari sistem.{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-6">
+    <div class="panel-card rounded-[1.8rem] border border-rose-200 p-7">
+        <div class="inline-flex items-center rounded-full bg-rose-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-rose-700">
+            Tindakan Sensitif
+        </div>
+        <h3 class="mt-5 text-2xl font-black tracking-tight text-slate-900">Apakah semester ini benar-benar ingin dihapus?</h3>
+        <p class="mt-3 text-sm leading-7 text-slate-600">
+            Penghapusan semester adalah tindakan permanen. Pastikan semester yang dipilih memang tidak lagi dibutuhkan
+            dalam histori sistem bendahara.
+        </p>
+
+        <div class="mt-6 grid gap-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 md:grid-cols-3">
+            <div>
+                <div class="text-xs uppercase tracking-[0.18em] text-slate-400">Nama</div>
+                <div class="mt-2 font-semibold text-slate-900">{{ semester.nama }}</div>
+            </div>
+            <div>
+                <div class="text-xs uppercase tracking-[0.18em] text-slate-400">Tahun Ajaran</div>
+                <div class="mt-2 font-semibold text-slate-900">{{ semester.tahun_ajaran }}</div>
+            </div>
+            <div>
+                <div class="text-xs uppercase tracking-[0.18em] text-slate-400">Semester</div>
+                <div class="mt-2 font-semibold text-slate-900">{{ semester.semester }}</div>
+            </div>
+        </div>
+
+        <div class="mt-5 rounded-[1.4rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-7 text-amber-900">
+            Semua tagihan atau data lain yang terkait dengan semester ini bisa ikut terdampak. Lanjutkan hanya jika
+            Anda yakin data tersebut memang tidak lagi diperlukan.
+        </div>
+
+        <form method="post" class="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-between">
+            {% csrf_token %}
+            <a href="{% url 'bendahara:semester_list' %}" class="btn-muted">Batal</a>
+            <button type="submit" class="btn-danger">Ya, Hapus Semester</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

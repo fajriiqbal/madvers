@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="id">
+{% load humanize %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Struk Pembayaran {{ nomor_transaksi }}</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 16px;
+            background: #f3f4f6;
+            font-family: "Courier New", monospace;
+            color: #111827;
+        }
+
+        .receipt {
+            width: 80mm;
+            max-width: 100%;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 14px 12px 18px;
+            box-sizing: border-box;
+            border: 1px dashed #9ca3af;
+        }
+
+        .center { text-align: center; }
+
+        .title {
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .small { font-size: 12px; line-height: 1.5; }
+
+        .divider {
+            border-top: 1px dashed #111827;
+            margin: 10px 0;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .row span:first-child {
+            flex: 1;
+        }
+
+        .row span:last-child {
+            flex: 1;
+            text-align: right;
+        }
+
+        .item-list {
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .item {
+            padding-bottom: 8px;
+            border-bottom: 1px dotted #9ca3af;
+        }
+
+        .item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .amount-box {
+            margin: 12px 0;
+            padding: 10px 8px;
+            border: 1px dashed #111827;
+            text-align: center;
+        }
+
+        .amount-box .label { font-size: 11px; }
+
+        .amount-box .amount {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 4px;
+        }
+
+        .status-box {
+            margin: 12px 0;
+            padding: 10px 8px;
+            border: 1px dashed #111827;
+        }
+
+        .status-box.kurang-bayar {
+            background: #fef2f2;
+            border-color: #dc2626;
+            color: #991b1b;
+        }
+
+        .status-box.lunas {
+            background: #ecfdf5;
+            border-color: #059669;
+            color: #065f46;
+        }
+
+        .status-title {
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .status-amount {
+            margin-top: 4px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .status-note {
+            margin-top: 4px;
+            font-size: 11px;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        .footer {
+            margin-top: 12px;
+            font-size: 11px;
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        @media print {
+            body { background: #ffffff; padding: 0; }
+            .receipt {
+                border: none;
+                width: 80mm;
+                padding: 8px 6px 12px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="receipt">
+        <div class="center">
+            <div class="title">Struk Pembayaran</div>
+            <div class="small">MTs Sunan Kalijaga</div>
+            <div class="small">No: {{ nomor_transaksi }}</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="row">
+            <span>Tanggal</span>
+            <span>{{ tanggal_bayar|date:"d-m-Y H:i" }}</span>
+        </div>
+
+        {% if semester %}
+        <div class="row">
+            <span>Semester</span>
+            <span>{{ semester.nama }}</span>
+        </div>
+        {% endif %}
+
+        <div class="row">
+            <span>NIS</span>
+            <span>{{ siswa.nis }}</span>
+        </div>
+
+        <div class="row">
+            <span>Nama</span>
+            <span>{{ siswa.nama }}</span>
+        </div>
+
+        <div class="row">
+            <span>Kelas</span>
+            <span>{{ siswa.kelas }}</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="small"><strong>Rincian Pembayaran</strong></div>
+        <div class="item-list">
+            {% for item in payment_items %}
+                <div class="item">
+                    <div class="row">
+                        <span>{{ item.tagihan.jenis.nama }}</span>
+                        <span>Rp {{ item.jumlah_bayar|intcomma }}</span>
+                    </div>
+                    <div class="row">
+                        <span>Periode</span>
+                        <span>{{ item.tagihan.periode|default:"-" }}</span>
+                    </div>
+                    <div class="row">
+                        <span>Sisa Setelah Bayar</span>
+                        <span>Rp {{ item.tagihan.sisa_tagihan|intcomma }}</span>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="amount-box">
+            <div class="label">TOTAL DIBAYAR</div>
+            <div class="amount">Rp {{ total_bayar|intcomma }}</div>
+        </div>
+
+        <div class="status-box {% if total_sisa_setelah_bayar > 0 %}kurang-bayar{% else %}lunas{% endif %}">
+            <div class="status-title">{{ status_pelunasan }}</div>
+            {% if total_sisa_setelah_bayar > 0 %}
+                <div class="status-amount">Sisa Rp {{ total_sisa_setelah_bayar|intcomma }}</div>
+                <div class="status-note">Ini adalah total sisa dari seluruh item tagihan yang belum lunas{% if semester %} pada semester ini{% endif %}.</div>
+            {% else %}
+                <div class="status-amount">Semua tagihan{% if semester %} semester ini{% endif %} sudah lunas.</div>
+            {% endif %}
+        </div>
+
+        <div class="row">
+            <span>Metode</span>
+            <span>{{ metode|default:"-" }}</span>
+        </div>
+
+        <div class="row">
+            <span>Keterangan</span>
+            <span>{{ keterangan|default:"-" }}</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="footer">
+            Bag. Bendahara<br>
+            Nani Rizki Amalia, S.E.
+        </div>
+    </div>
+</body>
+</html>

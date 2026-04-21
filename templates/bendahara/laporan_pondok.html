@@ -1,0 +1,195 @@
+{% extends 'bendahara/base.html' %}
+{% load humanize %}
+
+{% block title %}Laporan Pondok{% endblock %}
+{% block page_title %}Laporan Pondok{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+    <div class="grid gap-4 md:grid-cols-3">
+        <div class="panel-card rounded-3xl p-5">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Koordinasi Pondok</div>
+            <div class="mt-3 text-lg font-semibold text-slate-900">Pantau kekurangan bayar per pondok</div>
+            <p class="mt-2 text-sm text-slate-500">Cocok dipakai pengurus pondok untuk menindaklanjuti santri yang masih punya kekurangan pembayaran.</p>
+        </div>
+
+        <div class="panel-card rounded-3xl p-5">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Filter</div>
+            <div class="mt-3 text-lg font-semibold text-slate-900">Semester, pondok, dan kelas</div>
+            <p class="mt-2 text-sm text-slate-500">Fokuskan laporan supaya daftar siswa lebih ringkas dan mudah dibagikan ke pengurus.</p>
+        </div>
+
+        <div class="panel-card rounded-3xl p-5 bg-[linear-gradient(135deg,rgba(245,158,11,0.08),rgba(239,68,68,0.08))]">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Fokus</div>
+            <div class="mt-3 text-lg font-semibold text-slate-900">Tampilkan hanya yang masih kurang</div>
+            <p class="mt-2 text-sm text-slate-600">Halaman ini sengaja menampilkan siswa yang masih memiliki sisa tagihan agar tindak lanjut lebih cepat.</p>
+        </div>
+    </div>
+
+    <div class="panel-card rounded-3xl p-5">
+        <form method="get" class="grid gap-4 md:grid-cols-4 md:items-end">
+            <div>
+                <label class="text-sm text-slate-600">Semester</label>
+                <select name="semester" data-searchable="true" data-search-placeholder="Cari semester" class="mt-1 w-full rounded-xl border-slate-300">
+                    {% for semester_item in semester_list %}
+                    <option value="{{ semester_item.id }}" {% if semester and semester.id == semester_item.id %}selected{% endif %}>
+                        {{ semester_item.nama }}{% if semester_item.aktif %} (Aktif){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="text-sm text-slate-600">Pondok</label>
+                <select name="pondok" data-searchable="true" data-search-placeholder="Cari pondok" class="mt-1 w-full rounded-xl border-slate-300">
+                    <option value="">Semua Pondok</option>
+                    {% for pondok in pondok_list %}
+                    <option value="{{ pondok }}" {% if pondok_filter == pondok %}selected{% endif %}>{{ pondok }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="text-sm text-slate-600">Kelas</label>
+                <select name="kelas" data-searchable="true" data-search-placeholder="Cari kelas" class="mt-1 w-full rounded-xl border-slate-300">
+                    <option value="">Semua Kelas</option>
+                    {% for kelas in kelas_list %}
+                    <option value="{{ kelas }}" {% if kelas_filter == kelas %}selected{% endif %}>{{ kelas }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex gap-3 flex-wrap">
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
+                    Tampilkan
+                </button>
+                <button type="submit" name="export" value="pdf" data-skip-loading="true" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold shadow-sm">
+                    Export PDF
+                </button>
+                <button type="submit" name="export" value="xlsx" data-skip-loading="true" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm">
+                    Export Excel
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-3">
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Siswa Kurang Bayar</div>
+            <div class="mt-2 text-2xl font-bold text-slate-900">{{ total_siswa_kurang }}</div>
+            <div class="mt-2 text-sm text-slate-500">Jumlah siswa yang masih punya sisa tagihan.</div>
+        </div>
+
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Item Kurang</div>
+            <div class="mt-2 text-2xl font-bold text-amber-700">{{ total_item_kurang }}</div>
+            <div class="mt-2 text-sm text-slate-500">Akumulasi item tagihan yang belum lunas.</div>
+        </div>
+
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Total Sisa Tagihan</div>
+            <div class="mt-2 text-2xl font-bold text-red-700">Rp {{ total_sisa|intcomma }}</div>
+            <div class="mt-2 text-sm text-slate-500">Total kekurangan pembayaran pada filter yang dipilih.</div>
+        </div>
+    </div>
+
+    <div class="panel-card overflow-hidden rounded-3xl">
+        <div class="px-6 py-5 border-b border-slate-200/80">
+            <h3 class="text-xl font-semibold text-slate-900">Rekap per Pondok</h3>
+            <p class="text-sm text-slate-500">Gunakan bagian ini untuk melihat pondok mana yang total kekurangan pembayarannya paling besar.</p>
+        </div>
+
+        <div class="overflow-x-auto data-table">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50/80">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Pondok</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Siswa Kurang</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Item Kurang</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Total Sisa</th>
+                    </tr>
+                </thead>
+
+                <tbody class="divide-y divide-slate-200 bg-white">
+                    {% for item in pondok_summary_rows %}
+                    <tr class="hover:bg-blue-50/30">
+                        <td class="px-6 py-4 font-semibold text-slate-900">{{ item.pondok }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.jumlah_siswa_kurang }} siswa</td>
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.jumlah_item_kurang }} item</td>
+                        <td class="px-6 py-4 text-sm font-semibold text-red-700">Rp {{ item.total_sisa|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-8 text-center text-slate-500">Belum ada rekap pondok untuk filter ini.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="panel-card overflow-hidden rounded-3xl">
+        <div class="px-6 py-5 border-b border-slate-200/80">
+            <h3 class="text-xl font-semibold text-slate-900">Daftar Siswa yang Masih Kurang Bayar</h3>
+            <p class="text-sm text-slate-500">
+                {% if pondok_filter %}
+                    Menampilkan data pondok {{ pondok_filter }}
+                {% else %}
+                    Menampilkan semua pondok
+                {% endif %}
+                {% if semester %} pada semester {{ semester.nama }}{% endif %}.
+            </p>
+        </div>
+
+        <div class="overflow-x-auto data-table">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50/80">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Pondok</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">NIS</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Nama Siswa</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Kelas</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Item Kurang</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Rincian Kekurangan</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Total Sisa</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Aksi</th>
+                    </tr>
+                </thead>
+
+                <tbody class="divide-y divide-slate-200 bg-white">
+                    {% for row in siswa_pondok_rows %}
+                    <tr class="hover:bg-amber-50/30">
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ row.siswa.pondok|default:"-" }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ row.siswa.nis }}</td>
+                        <td class="px-6 py-4">
+                            <div class="font-semibold text-slate-900">{{ row.siswa.nama }}</div>
+                            <div class="text-xs text-slate-500">Perlu tindak lanjut pengurus pondok</div>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ row.siswa.kelas }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ row.jumlah_item_kurang }} item</td>
+                        <td class="px-6 py-4 text-sm text-slate-600">{{ row.detail_kekurangan }}</td>
+                        <td class="px-6 py-4 text-sm font-semibold text-red-700">Rp {{ row.total_sisa|intcomma }}</td>
+                        <td class="px-6 py-4 text-sm">
+                            <div class="flex gap-2 flex-wrap">
+                                <a href="{% url 'bendahara:pembayaran_detail_siswa' row.siswa.pk %}{% if semester %}?semester={{ semester.id }}{% endif %}" class="px-3 py-2 rounded-xl bg-blue-500 text-white font-semibold">
+                                    Detail
+                                </a>
+                                <a href="{% url 'bendahara:pembayaran_create' %}?siswa={{ row.siswa.pk }}{% if semester %}&semester={{ semester.id }}{% endif %}" class="px-3 py-2 rounded-xl bg-emerald-600 text-white font-semibold">
+                                    Bayar
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-8 text-center text-green-700 font-medium">
+                            Tidak ada siswa dengan kekurangan pembayaran pada filter ini.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

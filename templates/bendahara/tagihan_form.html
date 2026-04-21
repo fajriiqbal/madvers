@@ -1,0 +1,280 @@
+{% extends 'bendahara/base.html' %}
+{% load humanize %}
+
+{% block title %}Form Tagihan{% endblock %}
+{% block page_title %}Form Tagihan{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    {% if mode == 'select' %}
+        <div class="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+            <div class="panel-card rounded-3xl p-6">
+                <h3 class="text-lg font-semibold text-slate-900 mb-1">Pilih Siswa</h3>
+                <p class="text-sm text-slate-500 mb-6">Pilih siswa yang ingin Anda kelola tagihannya.</p>
+
+                <form method="post" class="space-y-5">
+                    {% csrf_token %}
+                    {% if current_semester %}
+                        <input type="hidden" name="semester" value="{{ current_semester.id }}">
+                    {% endif %}
+
+                    <div>
+                        <label for="siswa" class="block text-sm font-medium text-slate-700 mb-2">Siswa</label>
+                        <select name="siswa" id="siswa" data-searchable="true" data-search-placeholder="Cari siswa berdasarkan nama, kelas, atau NIS" class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                            <option value="">Pilih siswa</option>
+                            {% for siswa in siswa_list %}
+                                <option value="{{ siswa.id }}">{{ siswa.nama }} - {{ siswa.kelas }} - {{ siswa.nis }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                        <button type="submit" class="inline-flex items-center justify-center px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow-sm">
+                            Lanjut Kelola Tagihan
+                        </button>
+                        <a href="{% url 'bendahara:tagihan_list' %}" class="inline-flex items-center justify-center px-5 py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold">
+                            Kembali
+                        </a>
+                    </div>
+                </form>
+            </div>
+            <div class="panel-card rounded-3xl p-6 bg-[linear-gradient(135deg,rgba(245,158,11,0.08),rgba(17,75,58,0.08))]">
+                <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Panduan</div>
+                <div class="mt-3 space-y-2 text-sm text-slate-600">
+                    <div>1. Pilih siswa yang akan diproses terlebih dahulu.</div>
+                    <div>2. Aktifkan hanya jenis pembayaran yang benar-benar dibutuhkan.</div>
+                    <div>3. Isi periode dan jatuh tempo agar operator lain mudah membaca status tagihan.</div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="panel-card rounded-3xl p-6">
+            <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+                <div>
+                    <h3 class="text-lg font-semibold text-slate-900">Kelola Tagihan Siswa</h3>
+                    <p class="text-sm text-slate-500 mt-1">Atur jenis pembayaran yang aktif untuk {{ siswa.nama }}.</p>
+                </div>
+                <div class="grid sm:grid-cols-3 gap-3 text-sm">
+                    <div class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
+                        <div class="text-slate-500">NIS</div>
+                        <div class="font-semibold text-slate-900">{{ siswa.nis }}</div>
+                    </div>
+                    <div class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
+                        <div class="text-slate-500">Nama</div>
+                        <div class="font-semibold text-slate-900">{{ siswa.nama }}</div>
+                    </div>
+                    <div class="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3">
+                        <div class="text-slate-500">Kelas</div>
+                        <div class="font-semibold text-slate-900">{{ siswa.kelas }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <form method="post" class="space-y-6">
+                {% csrf_token %}
+
+                <div class="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-4">
+                    <label for="semester" class="block text-sm font-medium text-slate-700 mb-2">Semester yang dikelola</label>
+                    <select name="semester" id="semester" data-searchable="true" data-search-placeholder="Cari semester" class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500" onchange="window.location.href='?semester=' + this.value">
+                        {% for semester in semester_list %}
+                            <option value="{{ semester.id }}" {% if current_semester and current_semester.id == semester.id %}selected{% endif %}>
+                                {{ semester.nama }}{% if semester.aktif %} (Aktif){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    {% if current_semester %}
+                        <p class="mt-2 text-sm text-blue-700">Tagihan yang dibuat, diubah, dan dicetak mengikuti semester {{ current_semester.nama }}.</p>
+                    {% endif %}
+                </div>
+
+                <div class="space-y-4">
+                    {% for row in rows %}
+                        <details class="group rounded-3xl border border-slate-200 bg-white/90 open:border-amber-300 open:shadow-soft transition" {% if row.aktif %}open{% endif %}>
+                            <summary class="list-none cursor-pointer px-5 py-4">
+                                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                                    <div class="flex items-start gap-3">
+                                        <div class="mt-1 h-3 w-3 rounded-full {% if row.aktif %}bg-green-500{% else %}bg-slate-300{% endif %}"></div>
+                                        <div>
+                                            <h4 class="text-base font-semibold text-slate-900">{{ row.jenis.nama }}</h4>
+                                            <p class="text-sm text-slate-500">
+                                                Default nominal: Rp {{ row.jenis.nominal_default|intcomma }}
+                                                {% if row.is_bulanan %}
+                                                    <span class="text-blue-600">| mode bulanan {{ row.jumlah_bulan }} bulan</span>
+                                                {% endif %}
+                                                {% if row.aktif %}
+                                                    <span class="text-green-600">| tagihan aktif</span>
+                                                {% else %}
+                                                    <span>| belum diaktifkan</span>
+                                                {% endif %}
+                                                {% if not row.jenis.aktif %}
+                                                    <span class="text-red-500">| jenis pembayaran nonaktif</span>
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="inline-flex items-center gap-2 text-sm font-medium text-slate-600">
+                                        <span>Buka detail</span>
+                                        <span class="transition-transform duration-200 group-open:rotate-180">&#9662;</span>
+                                    </div>
+                                </div>
+                            </summary>
+
+                            <div class="border-t border-slate-200 px-5 py-5">
+                                <div class="grid md:grid-cols-3 gap-3 mb-4">
+                                    <div class="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3">
+                                        <div class="text-xs uppercase tracking-wide text-slate-500">Total Tagihan</div>
+                                        <div class="mt-1 text-sm font-semibold text-slate-900">Rp {{ row.total_nominal|intcomma }}</div>
+                                    </div>
+                                    <div class="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3">
+                                        <div class="text-xs uppercase tracking-wide text-emerald-600">Terbayar</div>
+                                        <div class="mt-1 text-sm font-semibold text-emerald-700">Rp {{ row.total_terbayar|intcomma }}</div>
+                                    </div>
+                                    <div class="rounded-2xl bg-red-50 border border-red-200 px-4 py-3">
+                                        <div class="text-xs uppercase tracking-wide text-red-500">Sisa</div>
+                                        <div class="mt-1 text-sm font-semibold text-red-700">Rp {{ row.total_sisa|intcomma }}</div>
+                                    </div>
+                                    <div class="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3 md:col-span-3">
+                                        <div class="text-xs uppercase tracking-wide text-slate-500">Status</div>
+                                        <div class="mt-1 text-sm font-semibold">
+                                            {% if row.status_pembayaran == 'Lunas' %}
+                                                <span class="text-green-700">Lunas</span>
+                                            {% elif row.status_pembayaran == 'Cicilan' %}
+                                                <span class="text-amber-700">Cicilan</span>
+                                            {% elif row.status_pembayaran == 'Belum Bayar' %}
+                                                <span class="text-red-700">Belum Bayar</span>
+                                            {% else %}
+                                                <span class="text-slate-700">Belum Dibuat</span>
+                                            {% endif %}
+                                            {% if row.is_bulanan %}
+                                                <span class="ml-2 text-xs text-slate-500">{{ row.periode_aktif }} dari {{ row.jumlah_bulan }} bulan aktif</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="inline-flex items-center gap-3 text-sm font-medium text-slate-700">
+                                        <input type="checkbox" name="aktif_{{ row.jenis.id }}" value="1" {% if row.aktif %}checked{% endif %} class="jenis-toggle h-4 w-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500" data-group="jenis_{{ row.jenis.id }}">
+                                        {% if row.is_bulanan %}
+                                            Aktifkan tagihan bulanan ini
+                                        {% else %}
+                                            Aktifkan tagihan ini
+                                        {% endif %}
+                                    </label>
+                                </div>
+
+                                {% if row.is_bulanan %}
+                                    <div class="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-4 mb-4 text-sm text-blue-800">
+                                        Tagihan ini akan dibuat per bulan. Operator nanti bisa memilih bulan mana saja yang dibayar saat input transaksi.
+                                    </div>
+
+                                    <div class="space-y-3">
+                                        {% for period_row in row.period_rows %}
+                                            <div class="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                                                <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+                                                    <div>
+                                                        <div class="flex items-center gap-3">
+                                                            <input type="checkbox" name="aktif_bulan_{{ row.jenis.id }}_{{ period_row.urutan_periode }}" value="1" {% if period_row.aktif %}checked{% endif %} class="period-toggle h-4 w-4 rounded border-slate-300 text-amber-500 focus:ring-amber-500" data-group="jenis_{{ row.jenis.id }}">
+                                                            <div>
+                                                                <div class="text-sm font-semibold text-slate-900">{{ period_row.periode_label }}</div>
+                                                                <div class="text-xs text-slate-500">Periode ke-{{ period_row.urutan_periode }}</div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="grid sm:grid-cols-3 gap-3 text-sm xl:min-w-[360px]">
+                                                        <div class="rounded-xl bg-white border border-slate-200 px-3 py-2">
+                                                            <div class="text-slate-500">Terbayar</div>
+                                                            <div class="font-semibold text-emerald-700">Rp {{ period_row.total_terbayar|intcomma }}</div>
+                                                        </div>
+                                                        <div class="rounded-xl bg-white border border-slate-200 px-3 py-2">
+                                                            <div class="text-slate-500">Sisa</div>
+                                                            <div class="font-semibold text-red-700">Rp {{ period_row.total_sisa|intcomma }}</div>
+                                                        </div>
+                                                        <div class="rounded-xl bg-white border border-slate-200 px-3 py-2">
+                                                            <div class="text-slate-500">Status</div>
+                                                            <div class="font-semibold text-slate-900">{{ period_row.status_pembayaran }}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="grid md:grid-cols-3 gap-4 mt-4">
+                                                    <div>
+                                                        <label for="nominal_bulan_{{ row.jenis.id }}_{{ period_row.urutan_periode }}" class="block text-sm font-medium text-slate-700 mb-2">Nominal Bulan Ini</label>
+                                                        <input type="number" min="0" name="nominal_bulan_{{ row.jenis.id }}_{{ period_row.urutan_periode }}" id="nominal_bulan_{{ row.jenis.id }}_{{ period_row.urutan_periode }}" value="{{ period_row.nominal }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                                                    </div>
+                                                    <div>
+                                                        <label for="jatuh_tempo_bulan_{{ row.jenis.id }}_{{ period_row.urutan_periode }}" class="block text-sm font-medium text-slate-700 mb-2">Jatuh Tempo</label>
+                                                        <input type="date" name="jatuh_tempo_bulan_{{ row.jenis.id }}_{{ period_row.urutan_periode }}" id="jatuh_tempo_bulan_{{ row.jenis.id }}_{{ period_row.urutan_periode }}" value="{{ period_row.jatuh_tempo }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                                                    </div>
+                                                    <div>
+                                                        <label for="catatan_bulan_{{ row.jenis.id }}_{{ period_row.urutan_periode }}" class="block text-sm font-medium text-slate-700 mb-2">Catatan</label>
+                                                        <textarea name="catatan_bulan_{{ row.jenis.id }}_{{ period_row.urutan_periode }}" id="catatan_bulan_{{ row.jenis.id }}_{{ period_row.urutan_periode }}" rows="3" class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500">{{ period_row.catatan }}</textarea>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <div class="grid md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="nominal_{{ row.jenis.id }}" class="block text-sm font-medium text-slate-700 mb-2">Nominal</label>
+                                            <input type="number" min="0" name="nominal_{{ row.jenis.id }}" id="nominal_{{ row.jenis.id }}" value="{{ row.nominal }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                                        </div>
+                                        <div>
+                                            <label for="periode_{{ row.jenis.id }}" class="block text-sm font-medium text-slate-700 mb-2">Periode</label>
+                                            <input type="text" name="periode_{{ row.jenis.id }}" id="periode_{{ row.jenis.id }}" value="{{ row.periode }}" placeholder="Contoh: Juli 2026" class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                                        </div>
+                                        <div>
+                                            <label for="jatuh_tempo_{{ row.jenis.id }}" class="block text-sm font-medium text-slate-700 mb-2">Jatuh Tempo</label>
+                                            <input type="date" name="jatuh_tempo_{{ row.jenis.id }}" id="jatuh_tempo_{{ row.jenis.id }}" value="{{ row.jatuh_tempo }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                                        </div>
+                                        <div>
+                                            <label for="catatan_{{ row.jenis.id }}" class="block text-sm font-medium text-slate-700 mb-2">Catatan</label>
+                                            <textarea name="catatan_{{ row.jenis.id }}" id="catatan_{{ row.jenis.id }}" rows="3" class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500">{{ row.catatan }}</textarea>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </details>
+                    {% empty %}
+                        <div class="rounded-xl bg-yellow-50 border border-yellow-200 px-4 py-3 text-yellow-800">
+                            Belum ada jenis pembayaran aktif. Tambahkan dulu pada menu jenis pembayaran.
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button type="submit" class="inline-flex items-center justify-center px-5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow-sm">
+                        Simpan Perubahan
+                    </button>
+                    <a href="{% url 'bendahara:tagihan_download' siswa.pk %}{% if current_semester %}?semester={{ current_semester.id }}{% endif %}" class="inline-flex items-center justify-center px-5 py-3 rounded-2xl bg-slate-700 hover:bg-slate-800 text-white font-semibold shadow-sm">
+                        Download Struk Tagihan
+                    </a>
+                    <a href="{% url 'bendahara:tagihan_list' %}{% if current_semester %}?semester={{ current_semester.id }}{% endif %}" class="inline-flex items-center justify-center px-5 py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold">
+                        Kembali ke Daftar
+                    </a>
+                </div>
+            </form>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    (function () {
+        const jenisToggles = Array.from(document.querySelectorAll('.jenis-toggle'));
+
+        jenisToggles.forEach((toggle) => {
+            toggle.addEventListener('change', () => {
+                const periodToggles = document.querySelectorAll(`.period-toggle[data-group="${toggle.dataset.group}"]`);
+                if (!periodToggles.length) {
+                    return;
+                }
+
+                periodToggles.forEach((periodToggle) => {
+                    periodToggle.checked = toggle.checked;
+                });
+            });
+        });
+    })();
+</script>
+{% endblock %}

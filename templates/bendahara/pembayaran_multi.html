@@ -1,0 +1,49 @@
+{% extends 'bendahara/base.html' %}
+{% load humanize %}
+
+{% block title %}Pembayaran Multi Tagihan{% endblock %}
+{% block page_title %}Pembayaran Multi Tagihan{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="panel-card rounded-3xl p-6">
+        <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400 mb-3">Pembayaran Multi</div>
+        <h3 class="text-xl font-semibold text-slate-900">Bayar Beberapa Tagihan Sekaligus</h3>
+        <p class="mt-2 text-sm text-slate-500">Pilih beberapa tagihan untuk dibayar dalam satu transaksi.</p>
+    </div>
+
+    <div class="panel-card rounded-3xl p-6">
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            
+            <div class="space-y-3">
+                {% for t in data %}
+                <label class="flex items-center gap-3 p-4 rounded-2xl border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer">
+                    <input type="checkbox" name="tagihan_ids" value="{{ t.id }}" class="w-5 h-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
+                    <span class="text-sm text-slate-700">
+                        {{ t.siswa.nama }} - {{ t.bulan }}/{{ t.tahun }} - Sisa: Rp {{ t.sisa|intcomma }}
+                    </span>
+                </label>
+                {% empty %}
+                <p class="text-slate-500 text-center py-8">Tidak ada tagihan yang tersedia.</p>
+                {% endfor %}
+            </div>
+
+            <div class="mt-6">
+                <label class="block text-sm font-semibold text-slate-700 mb-2">Total Bayar</label>
+                <input type="number" name="jumlah" placeholder="Masukkan total bayar" 
+                    class="w-full px-4 py-3 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+            </div>
+
+            <div class="flex gap-3 pt-4">
+                <button type="submit" class="px-6 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm transition">
+                    Bayar
+                </button>
+                <a href="{% url 'bendahara:pembayaran_list' %}" class="px-6 py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold transition">
+                    Batal
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

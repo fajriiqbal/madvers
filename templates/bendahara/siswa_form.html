@@ -1,0 +1,129 @@
+{% extends 'bendahara/base.html' %}
+{% load widget_tweaks %}
+
+{% block title %}Form Siswa{% endblock %}
+{% block page_title %}Form Siswa{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="grid gap-4 lg:grid-cols-[1.25fr_0.75fr]">
+        <div class="panel-card rounded-3xl p-6">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Data Induk</div>
+            <h3 class="mt-3 text-xl font-semibold text-slate-900">
+                {% if form.instance.pk %}Edit Data Siswa{% else %}Tambah Data Siswa{% endif %}
+            </h3>
+            <p class="mt-2 text-sm text-slate-500">
+                Pastikan NIS, nama, dan kelas sudah benar karena data ini akan dipakai di tagihan dan pembayaran.
+            </p>
+        </div>
+
+        <div class="panel-card rounded-3xl p-6 bg-[linear-gradient(135deg,rgba(37,99,235,0.08),rgba(17,75,58,0.08))]">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Tips Operator</div>
+            <div class="mt-3 space-y-2 text-sm text-slate-600">
+                <div>1. Masukkan siswa baru sebelum membuat tagihan.</div>
+                <div>2. Gunakan status aktif untuk membedakan siswa yang masih berjalan.</div>
+                <div>3. Gunakan import Excel untuk input massal agar lebih cepat.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <div class="panel-card rounded-3xl p-6">
+            <h3 class="text-lg font-semibold text-slate-900">Form Siswa</h3>
+            <p class="mt-1 text-sm text-slate-500">Lengkapi identitas siswa berikut sebelum menyimpan.</p>
+
+            <form method="post" class="mt-6 space-y-6">
+                {% csrf_token %}
+
+                {% if form.errors %}
+                    <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        Periksa kembali isian form. Ada data yang belum sesuai.
+                    </div>
+                {% endif %}
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">NIS</label>
+                        {{ form.nis|add_class:"w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" }}
+                        {% if form.nis.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.nis.errors|striptags }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Nama</label>
+                        {{ form.nama|add_class:"w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" }}
+                        {% if form.nama.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.nama.errors|striptags }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Kelas</label>
+                        {{ form.kelas|add_class:"w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" }}
+                        {% if form.kelas.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.kelas.errors|striptags }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Pondok</label>
+                        {{ form.pondok|add_class:"w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-800 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100" }}
+                        {% if form.pondok.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.pondok.errors|striptags }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <label class="flex items-center gap-3 text-sm font-medium text-slate-700">
+                            {{ form.aktif|add_class:"h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500" }}
+                            Tandai siswa sebagai aktif
+                        </label>
+                        <p class="mt-2 text-xs text-slate-500">Siswa aktif akan muncul pada proses pembuatan tagihan.</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button type="submit" class="inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
+                        Simpan Data Siswa
+                    </button>
+                    <a href="{% url 'bendahara:siswa_list' %}" class="inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold">
+                        Kembali
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <div class="panel-card rounded-3xl p-6">
+            <h3 class="text-lg font-semibold text-slate-900">Import Data Siswa</h3>
+            <p class="mt-1 text-sm text-slate-500">Gunakan file Excel untuk menambahkan banyak siswa sekaligus.</p>
+
+            <form method="post" enctype="multipart/form-data" action="{% url 'bendahara:upload_siswa' %}" class="mt-6 space-y-5">
+                {% csrf_token %}
+
+                <div>
+                    <label for="file" class="block text-sm font-medium text-slate-700 mb-2">File Excel</label>
+                    <input type="file" name="file" id="file" class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100">
+                </div>
+
+                <button type="submit" class="w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white py-3 font-semibold shadow-sm">
+                    Upload dan Import
+                </button>
+            </form>
+
+            <div class="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p class="text-sm font-semibold text-slate-900">Format Excel yang dipakai:</p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 border border-slate-200">nis</span>
+                    <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 border border-slate-200">nama</span>
+                    <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 border border-slate-200">kelas</span>
+                    <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 border border-slate-200">pondok</span>
+                </div>
+                <a href="{% url 'bendahara:download_template_siswa' %}" class="mt-4 inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700">
+                    Download Template Excel
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,346 @@
+{% extends 'bendahara/base.html' %}
+{% load humanize %}
+
+{% block title %}Form Pembayaran{% endblock %}
+{% block page_title %}Form Pembayaran{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+        <div class="panel-card rounded-3xl p-6">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Transaksi Gabungan</div>
+            <h3 class="mt-3 text-xl font-semibold text-slate-900">Bayar Beberapa Tagihan Sekaligus</h3>
+            <p class="mt-2 text-sm text-slate-500">
+                Satu transaksi bisa mencatat beberapa tagihan milik siswa yang sama. Operator tidak perlu input satu per satu,
+                dan sistem akan menghasilkan satu struk pembayaran gabungan.
+            </p>
+        </div>
+        <div class="panel-card rounded-3xl p-6 bg-[linear-gradient(135deg,rgba(16,185,129,0.08),rgba(245,158,11,0.08))]">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Tips Operator</div>
+            <div class="mt-3 space-y-2 text-sm text-slate-600">
+                <div>1. Pilih siswa dan semester terlebih dahulu agar daftar tagihan muncul dengan benar.</div>
+                <div>2. Centang hanya tagihan yang dibayar pada transaksi ini.</div>
+                <div>3. Isi nominal per tagihan, bisa penuh atau cicilan, lalu simpan satu kali.</div>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" class="panel-card rounded-3xl p-6 space-y-6">
+        {% csrf_token %}
+        {% if redirect_siswa_id %}
+            <input type="hidden" name="redirect_siswa" value="{{ redirect_siswa_id }}">
+        {% endif %}
+        {% if tagihan_id %}
+            <input type="hidden" name="tagihan_id" value="{{ tagihan_id }}">
+        {% endif %}
+        {% if lock_siswa %}
+            {{ form.siswa }}
+        {% endif %}
+
+        {% if form.non_field_errors %}
+            <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        {% if selected_siswa %}
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div class="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-4">
+                    <div class="text-xs uppercase tracking-wide text-slate-500">Siswa</div>
+                    <div class="mt-1 text-sm font-semibold text-slate-900">{{ selected_siswa.nama }}</div>
+                </div>
+                <div class="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-4">
+                    <div class="text-xs uppercase tracking-wide text-slate-500">NIS</div>
+                    <div class="mt-1 text-sm font-semibold text-slate-900">{{ selected_siswa.nis }}</div>
+                </div>
+                <div class="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-4">
+                    <div class="text-xs uppercase tracking-wide text-slate-500">Kelas</div>
+                    <div class="mt-1 text-sm font-semibold text-slate-900">{{ selected_siswa.kelas }}</div>
+                </div>
+                <div class="rounded-2xl bg-blue-50 border border-blue-200 px-4 py-4">
+                    <div class="text-xs uppercase tracking-wide text-blue-500">Semester</div>
+                    <div class="mt-1 text-sm font-semibold text-blue-700">{{ selected_semester.nama|default:"Belum dipilih" }}</div>
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="grid gap-5 md:grid-cols-2">
+            {% if not lock_siswa %}
+                <div>
+                    <label for="{{ form.siswa.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-2">
+                        {{ form.siswa.label }}
+                    </label>
+                    {{ form.siswa }}
+                    {% if form.siswa.errors %}
+                        <p class="mt-2 text-sm text-red-600">{{ form.siswa.errors|striptags }}</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <div>
+                <label for="{{ form.semester.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-2">
+                    {{ form.semester.label }}
+                </label>
+                {{ form.semester }}
+                {% if form.semester.errors %}
+                    <p class="mt-2 text-sm text-red-600">{{ form.semester.errors|striptags }}</p>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="{{ form.metode.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-2">
+                    {{ form.metode.label }}
+                </label>
+                {{ form.metode }}
+                {% if form.metode.errors %}
+                    <p class="mt-2 text-sm text-red-600">{{ form.metode.errors|striptags }}</p>
+                {% endif %}
+            </div>
+
+            <div class="md:col-span-2">
+                <label for="{{ form.keterangan.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-2">
+                    {{ form.keterangan.label }}
+                </label>
+                {{ form.keterangan }}
+                {% if form.keterangan.errors %}
+                    <p class="mt-2 text-sm text-red-600">{{ form.keterangan.errors|striptags }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <div class="text-sm font-medium text-slate-700">Total transaksi saat ini</div>
+                <div class="text-xs text-slate-500">Akan dihitung dari semua tagihan yang dicentang.</div>
+            </div>
+            <div class="text-2xl font-bold text-emerald-700" id="payment-total">Rp 0</div>
+        </div>
+
+        <div class="space-y-4">
+            <div>
+                <h4 class="text-lg font-semibold text-slate-900">Daftar Tagihan yang Bisa Dibayar</h4>
+                <p class="text-sm text-slate-500">Setiap baris mewakili satu tagihan. Anda bisa membayar 1, 2, atau beberapa tagihan sekaligus.</p>
+            </div>
+
+            {% if pembayaran_groups %}
+                <div class="space-y-4">
+                    {% for group in pembayaran_groups %}
+                        <div class="rounded-3xl border border-slate-200 bg-white overflow-hidden">
+                            <div class="px-5 py-4 border-b border-slate-200 bg-slate-50/80 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                                <div>
+                                    <h5 class="text-lg font-semibold text-slate-900">{{ group.jenis.nama }}</h5>
+                                    <p class="mt-1 text-sm text-slate-500">
+                                        {% if group.is_bulanan %}
+                                            Pilih bulan yang ingin dibayar pada transaksi ini.
+                                        {% else %}
+                                            Tagihan satuan untuk semester {{ selected_semester.nama|default:"yang dipilih" }}.
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <div class="grid sm:grid-cols-3 gap-3 text-sm">
+                                    <div class="rounded-2xl bg-white border border-slate-200 px-4 py-3">
+                                        <div class="text-slate-500">Total Tagihan</div>
+                                        <div class="font-semibold text-slate-900">Rp {{ group.total_nominal|intcomma }}</div>
+                                    </div>
+                                    <div class="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3">
+                                        <div class="text-emerald-600">Terbayar</div>
+                                        <div class="font-semibold text-emerald-700">Rp {{ group.total_terbayar|intcomma }}</div>
+                                    </div>
+                                    <div class="rounded-2xl bg-red-50 border border-red-200 px-4 py-3">
+                                        <div class="text-red-500">Sisa</div>
+                                        <div class="font-semibold text-red-700">Rp {{ group.total_sisa|intcomma }}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-5 space-y-4">
+                                {% for row in group.rows %}
+                                    <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                                        <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+                                            <div class="flex items-start gap-4">
+                                                <label class="mt-1 inline-flex">
+                                                    <input
+                                                        type="checkbox"
+                                                        name="pilih_tagihan_{{ row.tagihan.pk }}"
+                                                        value="1"
+                                                        {% if row.selected %}checked{% endif %}
+                                                        class="payment-checkbox h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                                    >
+                                                </label>
+                                                <div>
+                                                    <h6 class="text-base font-semibold text-slate-900">
+                                                        {% if group.is_bulanan %}
+                                                            {{ row.tagihan.periode|default:"Periode Bulanan" }}
+                                                        {% else %}
+                                                            {{ row.tagihan.jenis.nama }}
+                                                        {% endif %}
+                                                    </h6>
+                                                    <p class="mt-1 text-sm text-slate-500">
+                                                        Semester: {{ row.tagihan.semester.nama }}
+                                                        {% if not group.is_bulanan and row.tagihan.periode %}
+                                                            | Periode: {{ row.tagihan.periode }}
+                                                        {% endif %}
+                                                        {% if row.tagihan.jatuh_tempo %}
+                                                            | Jatuh tempo: {{ row.tagihan.jatuh_tempo|date:"d M Y" }}
+                                                        {% endif %}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                class="fill-full inline-flex items-center justify-center px-4 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold"
+                                                data-target="jumlah_tagihan_{{ row.tagihan.pk }}"
+                                                data-value="{{ row.tagihan.sisa_tagihan }}"
+                                                data-checkbox="pilih_tagihan_{{ row.tagihan.pk }}"
+                                            >
+                                                Isi Bayar Penuh
+                                            </button>
+                                        </div>
+
+                                        <div class="grid gap-3 mt-5 sm:grid-cols-3">
+                                            <div class="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3">
+                                                <div class="text-xs uppercase tracking-wide text-slate-500">Nominal Tagihan</div>
+                                                <div class="mt-1 text-sm font-semibold text-slate-900">Rp {{ row.tagihan.nominal|intcomma }}</div>
+                                            </div>
+                                            <div class="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3">
+                                                <div class="text-xs uppercase tracking-wide text-emerald-600">Terbayar</div>
+                                                <div class="mt-1 text-sm font-semibold text-emerald-700">Rp {{ row.tagihan.total_terbayar|intcomma }}</div>
+                                            </div>
+                                            <div class="rounded-2xl bg-red-50 border border-red-200 px-4 py-3">
+                                                <div class="text-xs uppercase tracking-wide text-red-500">Sisa Tagihan</div>
+                                                <div class="mt-1 text-sm font-semibold text-red-700">Rp {{ row.tagihan.sisa_tagihan|intcomma }}</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="mt-5">
+                                            <label for="jumlah_tagihan_{{ row.tagihan.pk }}" class="block text-sm font-medium text-slate-700 mb-2">
+                                                Jumlah Bayar
+                                            </label>
+                                            <input
+                                                type="number"
+                                                id="jumlah_tagihan_{{ row.tagihan.pk }}"
+                                                name="jumlah_tagihan_{{ row.tagihan.pk }}"
+                                                value="{{ row.jumlah_input }}"
+                                                min="0"
+                                                max="{{ row.tagihan.sisa_tagihan }}"
+                                                step="1"
+                                                class="payment-amount w-full rounded-2xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                data-checkbox-name="pilih_tagihan_{{ row.tagihan.pk }}"
+                                            >
+                                            <p class="mt-2 text-xs text-slate-500">
+                                                Maksimal pembayaran untuk item ini adalah Rp {{ row.tagihan.sisa_tagihan|intcomma }}.
+                                            </p>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% elif selected_siswa %}
+                <div class="rounded-3xl border border-slate-200 bg-slate-50 px-6 py-8 text-center text-slate-500">
+                    Tidak ada tagihan aktif yang masih memiliki sisa untuk siswa ini pada semester yang dipilih.
+                </div>
+            {% else %}
+                <div class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center text-slate-500">
+                    Pilih siswa dan semester terlebih dahulu, lalu tagihan yang masih tersisa akan tampil di sini.
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3 pt-2">
+            <button type="submit" class="inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm">
+                Simpan Transaksi Pembayaran
+            </button>
+            {% if back_to_detail and redirect_siswa_id %}
+                <a href="{% url 'bendahara:pembayaran_detail_siswa' redirect_siswa_id %}{% if current_semester %}?semester={{ current_semester.id }}{% endif %}" class="inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold">
+                    Kembali ke Detail Siswa
+                </a>
+            {% else %}
+                <a href="{% url 'bendahara:pembayaran_list' %}{% if current_semester %}?semester={{ current_semester.id }}{% endif %}" class="inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold">
+                    Kembali
+                </a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<style>
+    #id_siswa,
+    #id_semester,
+    #id_metode,
+    #id_keterangan {
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        border-radius: 1rem;
+        padding: 0.85rem 1rem;
+        outline: none;
+        background: white;
+    }
+
+    #id_keterangan {
+        min-height: 130px;
+    }
+
+    #id_siswa:focus,
+    #id_semester:focus,
+    #id_metode:focus,
+    #id_keterangan:focus {
+        border-color: #10b981;
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12);
+    }
+</style>
+
+<script>
+    (function () {
+        const formatRupiah = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
+        const totalElement = document.getElementById('payment-total');
+        const amountInputs = Array.from(document.querySelectorAll('.payment-amount'));
+        const fillButtons = Array.from(document.querySelectorAll('.fill-full'));
+
+        function updateTotal() {
+            let total = 0;
+            amountInputs.forEach((input) => {
+                const checkbox = document.querySelector(`[name="${input.dataset.checkboxName}"]`);
+                const value = Number(input.value || 0);
+                if (checkbox && checkbox.checked && value > 0) {
+                    total += value;
+                }
+            });
+            if (totalElement) {
+                totalElement.textContent = formatRupiah(total);
+            }
+        }
+
+        amountInputs.forEach((input) => {
+            input.addEventListener('input', () => {
+                const checkbox = document.querySelector(`[name="${input.dataset.checkboxName}"]`);
+                if (checkbox && input.value) {
+                    checkbox.checked = true;
+                }
+                updateTotal();
+            });
+        });
+
+        document.querySelectorAll('.payment-checkbox').forEach((checkbox) => {
+            checkbox.addEventListener('change', updateTotal);
+        });
+
+        fillButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const input = document.getElementById(button.dataset.target);
+                const checkbox = document.querySelector(`[name="${button.dataset.checkbox}"]`);
+                if (input) {
+                    input.value = button.dataset.value || '';
+                }
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+                updateTotal();
+            });
+        });
+
+        updateTotal();
+    })();
+</script>
+{% endblock %}

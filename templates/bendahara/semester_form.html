@@ -1,0 +1,182 @@
+{% extends 'bendahara/base.html' %}
+
+{% block title %}{% if mode == 'create' %}Tambah{% else %}Edit{% endif %} Semester{% endblock %}
+{% block page_title %}{% if mode == 'create' %}Tambah{% else %}Edit{% endif %} Semester{% endblock %}
+{% block page_subtitle %}Atur periode akademik yang akan dipakai sistem pembayaran dan pastikan semester aktif sudah sesuai operasional madrasah.{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <div class="panel-card rounded-[1.8rem] p-6">
+            <div class="text-xs uppercase tracking-[0.22em] text-slate-400">Form Semester</div>
+            <div class="mt-3 text-2xl font-bold text-slate-900">
+                {% if mode == 'create' %}Buat semester baru dengan struktur yang rapi{% else %}Perbarui pengaturan semester yang sudah ada{% endif %}
+            </div>
+            <p class="mt-3 text-sm leading-7 text-slate-500">
+                Data semester menjadi dasar untuk tagihan, pembayaran, kas sekolah, dan seluruh laporan. Karena itu,
+                periode yang dimasukkan perlu konsisten dan mudah dipahami operator.
+            </p>
+        </div>
+
+        {% if semester_suggestion and mode == 'create' %}
+            <div class="panel-card rounded-[1.8rem] bg-[linear-gradient(135deg,rgba(15,61,76,0.08),rgba(22,92,79,0.08),rgba(217,119,6,0.08))] p-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <div class="text-xs uppercase tracking-[0.22em] text-slate-500">Otomasi Kaldik</div>
+                        <div class="mt-3 text-lg font-semibold text-slate-900">Saran periode baru sudah disiapkan</div>
+                        <p class="mt-2 text-sm leading-7 text-slate-600">{{ semester_suggestion.source_label }}.</p>
+                    </div>
+                    <button
+                        type="button"
+                        id="applySemesterSuggestion"
+                        class="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-sm"
+                        data-nama="{{ semester_suggestion.nama }}"
+                        data-tahun="{{ semester_suggestion.tahun_ajaran }}"
+                        data-semester="{{ semester_suggestion.semester }}"
+                        data-mulai="{{ semester_suggestion.tanggal_mulai|date:'Y-m-d' }}"
+                        data-selesai="{{ semester_suggestion.tanggal_selesai|date:'Y-m-d' }}"
+                    >
+                        Gunakan Saran
+                    </button>
+                </div>
+
+                <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div class="rounded-2xl border border-white/60 bg-white/70 px-4 py-3">
+                        <div class="text-xs uppercase tracking-wide text-slate-500">Periode Disarankan</div>
+                        <div class="mt-1 font-semibold text-slate-900">{{ semester_suggestion.nama }}</div>
+                    </div>
+                    <div class="rounded-2xl border border-white/60 bg-white/70 px-4 py-3">
+                        <div class="text-xs uppercase tracking-wide text-slate-500">Rentang Kaldik</div>
+                        <div class="mt-1 font-semibold text-slate-900">{{ semester_suggestion.tanggal_mulai|date:"d M Y" }} - {{ semester_suggestion.tanggal_selesai|date:"d M Y" }}</div>
+                    </div>
+                </div>
+
+                <div class="mt-4 rounded-2xl border border-white/60 bg-white/70 px-4 py-4">
+                    <div class="text-xs uppercase tracking-[0.18em] text-slate-500">Preview Bulan Semester</div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        {% for month in semester_suggestion.month_preview %}
+                            <span class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">{{ month }}</span>
+                        {% endfor %}
+                    </div>
+                    <p class="mt-3 text-xs text-slate-500">Periode bulanan otomatis akan mengikuti rentang bulan semester ini saat membuat tagihan SPP.</p>
+                </div>
+            </div>
+        {% else %}
+            <div class="panel-card rounded-[1.8rem] bg-[linear-gradient(135deg,rgba(15,61,76,0.08),rgba(22,92,79,0.08),rgba(217,119,6,0.08))] p-6">
+                <div class="text-xs uppercase tracking-[0.22em] text-slate-500">Pedoman</div>
+                <div class="mt-3 space-y-2 text-sm leading-7 text-slate-600">
+                    <div>1. Gunakan nama yang konsisten, misalnya Ganjil 2026/2027.</div>
+                    <div>2. Pastikan tanggal mulai dan selesai sesuai kalender madrasah.</div>
+                    <div>3. Aktifkan semester hanya jika benar-benar dipakai untuk transaksi berjalan.</div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if form.errors %}
+    <div class="rounded-[1.4rem] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-800 shadow-sm">
+        <div class="font-semibold">Masih ada isian yang perlu diperbaiki.</div>
+        <ul class="mt-2 list-disc space-y-1 pl-5">
+            {% for field in form %}
+                {% for error in field.errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+            {% for error in form.non_field_errors %}
+                <li>{{ error }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="panel-card rounded-[1.9rem] p-6 lg:p-8">
+        <div class="mb-6 flex flex-col gap-3 border-b border-slate-200 pb-5 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+                <div class="text-xs uppercase tracking-[0.22em] text-slate-400">Pengisian Data</div>
+                <div class="mt-2 text-2xl font-bold text-slate-900">
+                    {% if mode == 'create' %}Tambah Semester Baru{% else %}Edit Data Semester{% endif %}
+                </div>
+                <p class="mt-2 text-sm text-slate-500">Lengkapi data berikut sebelum disimpan ke sistem.</p>
+            </div>
+            <a href="{% url 'bendahara:semester_list' %}" class="btn-muted">Kembali ke Daftar Semester</a>
+        </div>
+
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            <div class="grid gap-5 lg:grid-cols-2">
+                <div class="lg:col-span-2">
+                    <label class="mb-2 block text-sm font-semibold text-slate-700">Nama Semester</label>
+                    {{ form.nama }}
+                    <p class="mt-2 text-xs text-slate-500">Contoh: Ganjil 2026/2027.</p>
+                </div>
+
+                <div>
+                    <label class="mb-2 block text-sm font-semibold text-slate-700">Tahun Ajaran</label>
+                    {{ form.tahun_ajaran }}
+                    <p class="mt-2 text-xs text-slate-500">Contoh: 2026/2027.</p>
+                </div>
+
+                <div>
+                    <label class="mb-2 block text-sm font-semibold text-slate-700">Semester</label>
+                    {{ form.semester }}
+                </div>
+
+                <div>
+                    <label class="mb-2 block text-sm font-semibold text-slate-700">Tanggal Mulai</label>
+                    {{ form.tanggal_mulai }}
+                </div>
+
+                <div>
+                    <label class="mb-2 block text-sm font-semibold text-slate-700">Tanggal Selesai</label>
+                    {{ form.tanggal_selesai }}
+                </div>
+            </div>
+
+            <div class="rounded-[1.4rem] border border-slate-200 bg-slate-50 px-5 py-4">
+                <label class="flex items-center gap-3 text-sm font-semibold text-slate-700">
+                    {{ form.aktif }}
+                    Jadikan semester ini sebagai semester aktif
+                </label>
+                <p class="mt-2 text-xs text-slate-500">
+                    Semester aktif akan menjadi default pada dashboard, pembuatan tagihan, pembayaran, dan laporan.
+                </p>
+            </div>
+
+            <div class="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-between">
+                <a href="{% url 'bendahara:semester_list' %}" class="btn-muted">Kembali</a>
+                <button type="submit" class="btn-primary">
+                    {% if mode == 'create' %}Simpan Semester Baru{% else %}Simpan Perubahan Semester{% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    (function () {
+        const applySuggestionButton = document.getElementById('applySemesterSuggestion');
+        if (!applySuggestionButton) {
+            return;
+        }
+
+        applySuggestionButton.addEventListener('click', () => {
+            const namaInput = document.getElementById('id_nama');
+            const tahunInput = document.getElementById('id_tahun_ajaran');
+            const semesterInput = document.getElementById('id_semester');
+            const mulaiInput = document.getElementById('id_tanggal_mulai');
+            const selesaiInput = document.getElementById('id_tanggal_selesai');
+            const aktifInput = document.getElementById('id_aktif');
+
+            if (namaInput) namaInput.value = applySuggestionButton.dataset.nama || '';
+            if (tahunInput) tahunInput.value = applySuggestionButton.dataset.tahun || '';
+            if (semesterInput) semesterInput.value = applySuggestionButton.dataset.semester || '';
+            if (mulaiInput) mulaiInput.value = applySuggestionButton.dataset.mulai || '';
+            if (selesaiInput) selesaiInput.value = applySuggestionButton.dataset.selesai || '';
+            if (aktifInput) aktifInput.checked = true;
+        });
+    })();
+</script>
+{% endblock %}

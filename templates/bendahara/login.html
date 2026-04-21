@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Bendahara - MTs Sunan Kalijaga</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Manrope', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="page-loading min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_24%),radial-gradient(circle_at_bottom_right,rgba(22,92,79,0.16),transparent_26%),linear-gradient(180deg,#f8fafc_0%,#eef6f4_45%,#ffffff_100%)] font-sans text-slate-800">
+    <div id="pageLoader" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-md transition duration-200">
+        <div class="flex min-w-[260px] items-center gap-4 rounded-[1.5rem] border border-white/10 bg-slate-950/92 px-6 py-5 shadow-[0_24px_60px_rgba(15,23,42,0.35)]">
+            <div class="h-12 w-12 animate-spin rounded-full border-[3px] border-slate-700 border-t-emerald-400"></div>
+            <div>
+                <div class="text-base font-extrabold tracking-tight text-white">Memuat halaman</div>
+                <div class="mt-1 text-sm text-slate-300">Menyiapkan portal bendahara...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mx-auto grid min-h-screen max-w-7xl items-center gap-8 px-5 py-10 lg:grid-cols-[1.08fr_0.92fr] lg:px-8">
+        <section class="rounded-[2rem] border border-slate-200 bg-slate-900 px-8 py-9 text-white shadow-[0_28px_90px_rgba(15,23,42,0.22)] lg:px-10 lg:py-12">
+            <div class="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-200">
+                Portal Bendahara
+            </div>
+            <h1 class="mt-6 text-4xl font-black tracking-tight lg:text-5xl">MTs Sunan Kalijaga</h1>
+            <p class="mt-4 max-w-2xl text-base leading-8 text-slate-300">
+                Sistem bendahara ini dibuat agar proses penagihan, pembayaran, laporan, dan kas sekolah terasa lebih cepat,
+                lebih rapi, dan lebih mudah dipantau dari hari ke hari.
+            </p>
+
+            <div class="mt-8 grid gap-4 sm:grid-cols-2">
+                <div class="rounded-[1.5rem] border border-white/10 bg-white/5 p-5">
+                    <div class="text-xs uppercase tracking-[0.18em] text-slate-300">Operasional</div>
+                    <div class="mt-2 text-xl font-bold text-white">Pembayaran dan laporan dalam satu alur</div>
+                    <p class="mt-2 text-sm leading-6 text-slate-300">Petugas bisa bekerja tanpa berpindah terlalu banyak halaman yang membingungkan.</p>
+                </div>
+                <div class="rounded-[1.5rem] border border-white/10 bg-white/5 p-5">
+                    <div class="text-xs uppercase tracking-[0.18em] text-slate-300">Keamanan</div>
+                    <div class="mt-2 text-xl font-bold text-white">Akses sesuai tanggung jawab</div>
+                    <p class="mt-2 text-sm leading-6 text-slate-300">Halaman login menjaga fitur input hanya dipakai oleh petugas yang berwenang.</p>
+                </div>
+            </div>
+
+            <div class="mt-8 flex flex-wrap gap-3">
+                <a href="{% url 'home' %}" class="inline-flex items-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5">
+                    Kembali ke Portal
+                </a>
+                <a href="{% url 'monitoring_bendahara' %}" class="inline-flex items-center rounded-full border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+                    Lihat Monitoring
+                </a>
+            </div>
+        </section>
+
+        <section class="rounded-[2rem] border border-slate-200 bg-white/92 p-8 shadow-[0_24px_70px_rgba(15,23,42,0.08)] backdrop-blur lg:p-10">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Autentikasi</div>
+            <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-900">Masuk ke sistem bendahara</h2>
+            <p class="mt-3 text-sm leading-7 text-slate-500">
+                Gunakan akun petugas yang sudah terdaftar agar dapat mengakses fitur operasional, pembayaran, dan laporan.
+            </p>
+
+            {% if messages %}
+                <div class="mt-6 space-y-3">
+                    {% for message in messages %}
+                        <div class="rounded-[1.2rem] border px-4 py-3 text-sm font-medium
+                            {% if message.tags == 'success' %}
+                                border-emerald-200 bg-emerald-50 text-emerald-800
+                            {% else %}
+                                border-rose-200 bg-rose-50 text-rose-800
+                            {% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <form method="POST" class="mt-8 space-y-5">
+                {% csrf_token %}
+
+                <div>
+                    <label class="mb-2 block text-sm font-semibold text-slate-700">Username</label>
+                    <input type="text" name="username" required class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100">
+                </div>
+
+                <div>
+                    <label class="mb-2 block text-sm font-semibold text-slate-700">Password</label>
+                    <input type="password" name="password" required class="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100">
+                </div>
+
+                <button type="submit" class="inline-flex w-full items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#0f3d4c,#165c4f)] px-5 py-3.5 text-sm font-bold text-white shadow-[0_16px_32px_rgba(22,92,79,0.18)] transition hover:-translate-y-0.5">
+                    Login Bendahara
+                </button>
+            </form>
+
+            <div class="mt-6 rounded-[1.4rem] border border-slate-200 bg-slate-50 px-5 py-4">
+                <div class="text-sm font-semibold text-slate-900">Catatan</div>
+                <p class="mt-1 text-sm leading-6 text-slate-500">
+                    Jika Anda hanya perlu memantau kondisi pembayaran tanpa melakukan input data, gunakan halaman monitoring baca-saja.
+                </p>
+            </div>
+        </section>
+    </div>
+    <script>
+        (function () {
+            const hideLoader = () => {
+                document.body.classList.remove('page-loading');
+                const loader = document.getElementById('pageLoader');
+                if (loader) {
+                    loader.classList.add('opacity-0', 'pointer-events-none');
+                }
+            };
+
+            window.addEventListener('load', hideLoader);
+            document.addEventListener('DOMContentLoaded', () => {
+                window.setTimeout(hideLoader, 120);
+            });
+
+            document.querySelectorAll('form').forEach((form) => {
+                form.addEventListener('submit', () => {
+                    document.body.classList.add('page-loading');
+                    const loader = document.getElementById('pageLoader');
+                    if (loader) {
+                        loader.classList.remove('opacity-0', 'pointer-events-none');
+                    }
+                });
+            });
+        })();
+    </script>
+</body>
+</html>

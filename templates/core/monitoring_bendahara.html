@@ -1,0 +1,331 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Bendahara - MTs Sunan Kalijaga</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="page-loading min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_22%),radial-gradient(circle_at_top_right,rgba(16,185,129,0.12),transparent_24%),linear-gradient(180deg,#f8fafc_0%,#eef6f8_45%,#ffffff_100%)] text-slate-800">
+    <div id="pageLoader" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-md transition duration-200">
+        <div class="flex min-w-[260px] items-center gap-4 rounded-[1.5rem] border border-white/10 bg-slate-950/92 px-6 py-5 shadow-[0_24px_60px_rgba(15,23,42,0.35)]">
+            <div class="h-12 w-12 animate-spin rounded-full border-[3px] border-slate-700 border-t-emerald-400"></div>
+            <div>
+                <div class="text-base font-extrabold tracking-tight text-white">Memuat monitoring</div>
+                <div class="mt-1 text-sm text-slate-300">Menghitung ringkasan keuangan sekolah...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mx-auto max-w-7xl px-5 py-8 lg:px-8 lg:py-10">
+        <header class="overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-900 text-white shadow-[0_24px_80px_rgba(15,23,42,0.18)]">
+            <div class="grid gap-8 px-7 py-8 lg:grid-cols-[1.15fr_0.85fr] lg:px-10 lg:py-10">
+                <div>
+                    <div class="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-200">
+                        Monitoring Bendahara
+                    </div>
+                    <h1 class="mt-5 text-3xl font-black tracking-tight text-white lg:text-4xl">
+                        Ringkasan penting sistem keuangan sekolah
+                    </h1>
+                    <p class="mt-4 max-w-3xl text-sm leading-7 text-slate-300 lg:text-base">
+                        Halaman ini dibuat khusus untuk memantau kondisi pembayaran, tunggakan, dan kas sekolah
+                        secara baca-saja. Cocok dipakai oleh pimpinan, pengawas internal, maupun pihak yang hanya
+                        perlu melihat informasi inti tanpa akses input data.
+                    </p>
+
+                    <div class="mt-7 flex flex-wrap gap-3">
+                        <a href="{% url 'home' %}" class="inline-flex items-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5">
+                            Kembali ke Portal
+                        </a>
+                        <a href="/bendahara/login/" class="inline-flex items-center rounded-full border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+                            Masuk Bendahara
+                        </a>
+                        <a href="/admin/" class="inline-flex items-center rounded-full border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10">
+                            Masuk Admin
+                        </a>
+                    </div>
+                </div>
+
+                <div class="rounded-[1.7rem] border border-white/10 bg-white/10 p-6 backdrop-blur">
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div class="text-xs uppercase tracking-[0.18em] text-slate-300">Semester Aktif</div>
+                            <div class="mt-3 text-lg font-bold text-white">{{ semester_aktif.nama|default:"Belum Diatur" }}</div>
+                            <div class="mt-2 text-sm text-slate-300">
+                                {% if semester_aktif %}
+                                    Tahun ajaran {{ semester_aktif.tahun_ajaran }}
+                                {% else %}
+                                    Segera pilih semester aktif agar monitoring terisi.
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div class="text-xs uppercase tracking-[0.18em] text-slate-300">Tanggal Pantau</div>
+                            <div class="mt-3 text-lg font-bold text-white">{{ today|date:"d F Y" }}</div>
+                            <div class="mt-2 text-sm text-slate-300">Angka pada halaman ini disusun dari data semester aktif.</div>
+                        </div>
+                        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div class="text-xs uppercase tracking-[0.18em] text-slate-300">Siswa Aktif</div>
+                            <div class="mt-3 text-3xl font-black text-white">{{ total_siswa_aktif }}</div>
+                            <div class="mt-2 text-sm text-slate-300">Jumlah siswa yang masih aktif di sistem.</div>
+                        </div>
+                        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                            <div class="text-xs uppercase tracking-[0.18em] text-slate-300">Jenis Pembayaran</div>
+                            <div class="mt-3 text-3xl font-black text-white">{{ total_jenis_pembayaran_aktif }}</div>
+                            <div class="mt-2 text-sm text-slate-300">Jenis pembayaran aktif yang sedang dipakai.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <article class="rounded-[1.6rem] border border-slate-200 bg-white p-6 shadow-[0_18px_48px_rgba(15,23,42,0.06)]">
+                <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Target Masuk</div>
+                <div class="mt-3 text-3xl font-black text-slate-900">Rp {{ total_target_masuk|intcomma }}</div>
+                <p class="mt-2 text-sm leading-6 text-slate-500">Akumulasi seluruh tagihan pada semester aktif.</p>
+            </article>
+            <article class="rounded-[1.6rem] border border-emerald-200 bg-[linear-gradient(135deg,rgba(16,185,129,0.10),rgba(255,255,255,0.9))] p-6 shadow-[0_18px_48px_rgba(16,185,129,0.10)]">
+                <div class="text-xs font-bold uppercase tracking-[0.22em] text-emerald-700">Realisasi Masuk</div>
+                <div class="mt-3 text-3xl font-black text-slate-900">Rp {{ total_realisasi_masuk|intcomma }}</div>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Seluruh pembayaran yang sudah benar-benar tercatat masuk.</p>
+            </article>
+            <article class="rounded-[1.6rem] border border-amber-200 bg-[linear-gradient(135deg,rgba(245,158,11,0.12),rgba(255,255,255,0.92))] p-6 shadow-[0_18px_48px_rgba(245,158,11,0.10)]">
+                <div class="text-xs font-bold uppercase tracking-[0.22em] text-amber-700">Sisa Tagihan</div>
+                <div class="mt-3 text-3xl font-black text-slate-900">Rp {{ total_sisa|intcomma }}</div>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Kekurangan dari seluruh item pembayaran yang belum lunas.</p>
+            </article>
+            <article class="rounded-[1.6rem] border border-rose-200 bg-[linear-gradient(135deg,rgba(244,63,94,0.10),rgba(255,255,255,0.92))] p-6 shadow-[0_18px_48px_rgba(244,63,94,0.08)]">
+                <div class="text-xs font-bold uppercase tracking-[0.22em] text-rose-700">Total Pengeluaran</div>
+                <div class="mt-3 text-3xl font-black text-slate-900">Rp {{ total_pengeluaran|intcomma }}</div>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Semua kas keluar yang sudah dicatat pada semester aktif.</p>
+            </article>
+            <article class="rounded-[1.6rem] border border-sky-200 bg-[linear-gradient(135deg,rgba(14,165,233,0.12),rgba(255,255,255,0.94))] p-6 shadow-[0_18px_48px_rgba(14,165,233,0.08)]">
+                <div class="text-xs font-bold uppercase tracking-[0.22em] text-sky-700">Saldo Aktual</div>
+                <div class="mt-3 text-3xl font-black text-slate-900">Rp {{ saldo_aktual|intcomma }}</div>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Realisasi masuk dikurangi total pengeluaran yang tercatat.</p>
+            </article>
+            <article class="rounded-[1.6rem] border border-slate-200 bg-white p-6 shadow-[0_18px_48px_rgba(15,23,42,0.06)]">
+                <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Item Tagihan</div>
+                <div class="mt-3 text-3xl font-black text-slate-900">{{ total_tagihan }}</div>
+                <p class="mt-2 text-sm leading-6 text-slate-500">Jumlah seluruh baris tagihan yang sedang dimonitor.</p>
+            </article>
+        </section>
+
+        {% if not semester_aktif %}
+        <section class="mt-8 rounded-[1.7rem] border border-amber-200 bg-amber-50 px-6 py-5 text-amber-900 shadow-sm">
+            <div class="text-sm font-semibold">Semester aktif belum ditentukan.</div>
+            <p class="mt-1 text-sm leading-6 text-amber-800">
+                Halaman ini tetap bisa dibuka, tetapi angka monitoring belum akan terisi penuh sampai semester aktif dipilih.
+            </p>
+        </section>
+        {% endif %}
+
+        <section class="mt-8 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+            <div class="rounded-[1.8rem] border border-slate-200 bg-white p-6 shadow-[0_18px_56px_rgba(15,23,42,0.06)]">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Per Jenis Pembayaran</div>
+                        <h2 class="mt-2 text-2xl font-bold text-slate-900">Ringkasan pemasukan per jenis</h2>
+                    </div>
+                    <div class="rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-600">Read Only</div>
+                </div>
+                <div class="mt-6 overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-200 text-left text-slate-500">
+                                <th class="pb-3 pr-4 font-semibold">Jenis</th>
+                                <th class="pb-3 pr-4 font-semibold">Target</th>
+                                <th class="pb-3 pr-4 font-semibold">Masuk</th>
+                                <th class="pb-3 font-semibold">Sisa</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for row in jenis_summary_rows %}
+                            <tr>
+                                <td class="py-4 pr-4">
+                                    <div class="font-semibold text-slate-900">{{ row.jenis.nama }}</div>
+                                    <div class="mt-1 text-xs text-slate-500">
+                                        {% if row.jenis.is_bulanan %}
+                                            Bulanan {{ row.jenis.jumlah_bulan_per_semester }} bulan
+                                        {% else %}
+                                            Pembayaran per semester
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="py-4 pr-4 text-slate-700">Rp {{ row.target|intcomma }}</td>
+                                <td class="py-4 pr-4 text-emerald-700 font-semibold">Rp {{ row.masuk|intcomma }}</td>
+                                <td class="py-4 font-semibold {% if row.sisa > 0 %}text-amber-700{% else %}text-emerald-700{% endif %}">
+                                    Rp {{ row.sisa|intcomma }}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="py-8 text-center text-slate-500">Belum ada data jenis pembayaran pada semester aktif.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="rounded-[1.8rem] border border-slate-200 bg-white p-6 shadow-[0_18px_56px_rgba(15,23,42,0.06)]">
+                <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Per Pondok</div>
+                <h2 class="mt-2 text-2xl font-bold text-slate-900">Pondok dengan tunggakan terbanyak</h2>
+                <div class="mt-6 space-y-3">
+                    {% for row in pondok_summary_rows %}
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <div class="font-semibold text-slate-900">{{ row.pondok }}</div>
+                                <div class="mt-1 text-sm text-slate-500">{{ row.jumlah_siswa }} siswa masih memiliki kekurangan pembayaran</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs uppercase tracking-wide text-slate-400">Total Sisa</div>
+                                <div class="mt-1 text-lg font-bold text-amber-700">Rp {{ row.total_sisa|intcomma }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500">
+                        Belum ada data pondok yang memiliki tunggakan.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="mt-6 grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+            <div class="rounded-[1.8rem] border border-slate-200 bg-white p-6 shadow-[0_18px_56px_rgba(15,23,42,0.06)]">
+                <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Siswa Prioritas</div>
+                <h2 class="mt-2 text-2xl font-bold text-slate-900">Tunggakan terbesar</h2>
+                <div class="mt-6 overflow-hidden rounded-[1.4rem] border border-slate-100">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-slate-50">
+                            <tr class="text-left text-slate-500">
+                                <th class="px-4 py-3 font-semibold">Siswa</th>
+                                <th class="px-4 py-3 font-semibold">Kelas</th>
+                                <th class="px-4 py-3 font-semibold">Item</th>
+                                <th class="px-4 py-3 font-semibold">Sisa</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for row in siswa_tunggakan %}
+                            <tr>
+                                <td class="px-4 py-4">
+                                    <div class="font-semibold text-slate-900">{{ row.siswa.nama }}</div>
+                                    <div class="mt-1 text-xs text-slate-500">NIS {{ row.siswa.nis }}{% if row.siswa.pondok %} • {{ row.siswa.pondok }}{% endif %}</div>
+                                </td>
+                                <td class="px-4 py-4 text-slate-700">{{ row.siswa.kelas }}</td>
+                                <td class="px-4 py-4 text-slate-700">{{ row.jumlah_item }} item</td>
+                                <td class="px-4 py-4 font-semibold text-amber-700">Rp {{ row.total_sisa|intcomma }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="px-4 py-8 text-center text-slate-500">Tidak ada siswa yang memiliki tunggakan.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="rounded-[1.8rem] border border-slate-200 bg-white p-6 shadow-[0_18px_56px_rgba(15,23,42,0.06)]">
+                <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Aktivitas Terbaru</div>
+                <h2 class="mt-2 text-2xl font-bold text-slate-900">Pembayaran terakhir yang tercatat</h2>
+                <div class="mt-6 space-y-3">
+                    {% for pembayaran in pembayaran_items %}
+                    <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <div class="font-semibold text-slate-900">{{ pembayaran.tagihan.siswa.nama }}</div>
+                                <div class="mt-1 text-sm text-slate-600">
+                                    {{ pembayaran.tagihan.jenis.nama }}
+                                    {% if pembayaran.tagihan.periode %}
+                                        • {{ pembayaran.tagihan.periode }}
+                                    {% endif %}
+                                </div>
+                                <div class="mt-1 text-xs text-slate-500">
+                                    {{ pembayaran.tanggal_bayar|date:"d M Y H:i" }}
+                                    {% if pembayaran.transaksi and pembayaran.transaksi.kode_transaksi %}
+                                        • {{ pembayaran.transaksi.kode_transaksi }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs uppercase tracking-wide text-slate-400">Nominal Bayar</div>
+                                <div class="mt-1 text-lg font-bold text-emerald-700">Rp {{ pembayaran.jumlah_bayar|intcomma }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500">
+                        Belum ada pembayaran yang tercatat.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="mt-6 rounded-[1.8rem] border border-slate-200 bg-white p-6 shadow-[0_18px_56px_rgba(15,23,42,0.06)]">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Kas Keluar</div>
+                    <h2 class="mt-2 text-2xl font-bold text-slate-900">Pengeluaran terbaru</h2>
+                </div>
+                <div class="rounded-full bg-rose-50 px-4 py-2 text-xs font-semibold text-rose-700">Tanpa CRUD</div>
+            </div>
+            <div class="mt-6 overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-200 text-left text-slate-500">
+                            <th class="pb-3 pr-4 font-semibold">Tanggal</th>
+                            <th class="pb-3 pr-4 font-semibold">Kode</th>
+                            <th class="pb-3 pr-4 font-semibold">Judul</th>
+                            <th class="pb-3 pr-4 font-semibold">Kategori</th>
+                            <th class="pb-3 font-semibold">Jumlah</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for item in kas_keluar_items %}
+                        <tr>
+                            <td class="py-4 pr-4 text-slate-700">{{ item.tanggal_pengeluaran|date:"d M Y" }}</td>
+                            <td class="py-4 pr-4 text-slate-500">{{ item.kode_pengeluaran|default:"-" }}</td>
+                            <td class="py-4 pr-4">
+                                <div class="font-semibold text-slate-900">{{ item.judul }}</div>
+                                {% if item.keterangan %}
+                                <div class="mt-1 text-xs text-slate-500">{{ item.keterangan|truncatechars:80 }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="py-4 pr-4 text-slate-700">{{ item.kategori }}</td>
+                            <td class="py-4 font-semibold text-rose-700">Rp {{ item.jumlah|intcomma }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="py-8 text-center text-slate-500">Belum ada pengeluaran yang tercatat.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+    <script>
+        (function () {
+            const hideLoader = () => {
+                document.body.classList.remove('page-loading');
+                const loader = document.getElementById('pageLoader');
+                if (loader) {
+                    loader.classList.add('opacity-0', 'pointer-events-none');
+                }
+            };
+
+            window.addEventListener('load', hideLoader);
+            document.addEventListener('DOMContentLoaded', () => {
+                window.setTimeout(hideLoader, 120);
+            });
+        })();
+    </script>
+</body>
+</html>

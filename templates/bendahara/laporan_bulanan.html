@@ -1,0 +1,200 @@
+{% extends 'bendahara/base.html' %}
+{% load humanize %}
+
+{% block title %}Laporan Per Bulan{% endblock %}
+{% block page_title %}Laporan Per Bulan{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+    <div class="grid gap-4 md:grid-cols-3">
+        <div class="panel-card rounded-3xl p-5">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Monitoring</div>
+            <div class="mt-3 text-lg font-semibold text-slate-900">Pantau kas masuk bulanan</div>
+            <p class="mt-2 text-sm text-slate-500">Fokus pada pembayaran yang benar-benar masuk pada bulan yang dipilih.</p>
+        </div>
+
+        <div class="panel-card rounded-3xl p-5">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Filter</div>
+            <div class="mt-3 text-lg font-semibold text-slate-900">Bulan, tahun, semester, kelas</div>
+            <p class="mt-2 text-sm text-slate-500">Gunakan kombinasi filter untuk rekap yang lebih spesifik.</p>
+        </div>
+
+        <div class="panel-card rounded-3xl p-5 bg-[linear-gradient(135deg,rgba(16,185,129,0.08),rgba(37,99,235,0.08))]">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Catatan</div>
+            <div class="mt-3 text-lg font-semibold text-slate-900">Laporan ini fokus pada transaksi masuk</div>
+            <p class="mt-2 text-sm text-slate-600">Cocok untuk rekap operasional bulanan bendahara dan pembukuan pemasukan.</p>
+        </div>
+    </div>
+
+    <div class="panel-card rounded-3xl p-5">
+        <form method="get" class="grid gap-4 md:grid-cols-5 md:items-end">
+            <div>
+                <label class="text-sm text-slate-600">Bulan</label>
+                <select name="bulan" class="mt-1 w-full rounded-xl border-slate-300">
+                    {% for month in month_options %}
+                    <option value="{{ month.value }}" {% if selected_month == month.value %}selected{% endif %}>
+                        {{ month.label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="text-sm text-slate-600">Tahun</label>
+                <select name="tahun" class="mt-1 w-full rounded-xl border-slate-300">
+                    {% for year in year_options %}
+                    <option value="{{ year }}" {% if selected_year == year %}selected{% endif %}>
+                        {{ year }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="text-sm text-slate-600">Semester</label>
+                <select name="semester" data-searchable="true" data-search-placeholder="Cari semester" class="mt-1 w-full rounded-xl border-slate-300">
+                    {% for s in semester_list %}
+                    <option value="{{ s.id }}" {% if semester and semester.id == s.id %}selected{% endif %}>
+                        {{ s.nama }}{% if s.aktif %} (Aktif){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label class="text-sm text-slate-600">Kelas</label>
+                <select name="kelas" data-searchable="true" data-search-placeholder="Cari kelas" class="mt-1 w-full rounded-xl border-slate-300">
+                    <option value="">Semua Kelas</option>
+                    {% for kelas in kelas_list %}
+                    <option value="{{ kelas }}" {% if kelas_filter == kelas %}selected{% endif %}>{{ kelas }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex gap-3 flex-wrap">
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
+                    Tampilkan
+                </button>
+                <button type="submit" name="export" value="pdf" data-skip-loading="true" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold shadow-sm">
+                    Export PDF
+                </button>
+                <button type="submit" name="export" value="xlsx" data-skip-loading="true" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm">
+                    Export Excel
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Periode Laporan</div>
+            <div class="mt-2 text-lg font-semibold text-slate-900">{{ bulan_label }} {{ selected_year }}</div>
+            <div class="mt-2 text-sm text-slate-500">
+                {% if semester %}Semester {{ semester.nama }}{% else %}Semua semester{% endif %}
+                {% if kelas_filter %} | Kelas {{ kelas_filter }}{% endif %}
+            </div>
+        </div>
+
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Kas Masuk</div>
+            <div class="mt-2 text-2xl font-bold text-emerald-700">Rp {{ total_pembayaran|intcomma }}</div>
+            <div class="mt-2 text-sm text-slate-500">Total nominal pembayaran masuk pada periode ini.</div>
+        </div>
+
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Jumlah Transaksi</div>
+            <div class="mt-2 text-2xl font-bold text-slate-900">{{ jumlah_transaksi }}</div>
+            <div class="mt-2 text-sm text-slate-500">Transaksi gabungan dan pembayaran tunggal yang tercatat.</div>
+        </div>
+
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Siswa Membayar</div>
+            <div class="mt-2 text-2xl font-bold text-blue-700">{{ jumlah_siswa_bayar }}</div>
+            <div class="mt-2 text-sm text-slate-500">Jumlah siswa unik yang melakukan pembayaran.</div>
+        </div>
+    </div>
+
+    <div class="panel-card overflow-hidden rounded-3xl">
+        <div class="px-6 py-5 border-b border-slate-200/80">
+            <h3 class="text-xl font-semibold text-slate-900">Ringkasan per Jenis Pembayaran</h3>
+            <p class="text-sm text-slate-500">Lihat jenis pembayaran mana yang paling banyak masuk di bulan ini.</p>
+        </div>
+
+        <div class="overflow-x-auto data-table">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50/80">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Jenis Pembayaran</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Siswa</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Item Bayar</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Kas Masuk</th>
+                    </tr>
+                </thead>
+
+                <tbody class="divide-y divide-slate-200 bg-white">
+                    {% for item in jenis_summary_rows %}
+                    <tr class="hover:bg-emerald-50/40">
+                        <td class="px-6 py-4 font-semibold text-slate-900">{{ item.jenis.nama }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.jumlah_siswa }} siswa</td>
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.jumlah_item }} item</td>
+                        <td class="px-6 py-4 text-sm font-semibold text-emerald-700">Rp {{ item.total_bayar|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-8 text-center text-slate-500">Belum ada pembayaran pada periode ini.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="panel-card overflow-hidden rounded-3xl">
+        <div class="px-6 py-5 border-b border-slate-200/80">
+            <h3 class="text-xl font-semibold text-slate-900">Detail Transaksi Bulanan</h3>
+            <p class="text-sm text-slate-500">Rincian pembayaran untuk audit dan pencocokan pembukuan.</p>
+        </div>
+
+        <div class="overflow-x-auto data-table">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50/80">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Tanggal</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Kode</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Nama Siswa</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Kelas</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Jenis</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Periode</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Metode</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Jumlah</th>
+                    </tr>
+                </thead>
+
+                <tbody class="divide-y divide-slate-200 bg-white">
+                    {% for item in payment_items %}
+                    <tr class="hover:bg-blue-50/30">
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.tanggal_bayar|date:"d M Y H:i" }}</td>
+                        <td class="px-6 py-4 text-sm font-medium text-slate-900">
+                            {% if item.transaksi %}{{ item.transaksi.kode_transaksi }}{% else %}PBY-{{ item.pk|stringformat:"05d" }}{% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="font-semibold text-slate-900">{{ item.tagihan.siswa.nama }}</div>
+                            <div class="text-xs text-slate-500">{{ item.tagihan.siswa.nis }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.tagihan.siswa.kelas }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.tagihan.jenis.nama }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.tagihan.periode|default:"-" }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.metode|default:"-" }}</td>
+                        <td class="px-6 py-4 text-sm font-semibold text-emerald-700">Rp {{ item.jumlah_bayar|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-8 text-center text-slate-500">Belum ada transaksi pembayaran pada periode ini.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

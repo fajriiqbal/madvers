@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="id">
+{% load humanize %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Struk Tagihan {{ siswa.nama }}</title>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 16px;
+            background: #f3f4f6;
+            font-family: "Courier New", monospace;
+            color: #111827;
+        }
+
+        .receipt {
+            width: 80mm;
+            margin: 0 auto;
+            background: #fff;
+            padding: 14px 12px 18px;
+            border: 1px dashed #9ca3af;
+        }
+
+        .center { text-align: center; }
+
+        .title {
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .small { font-size: 12px; }
+
+        .divider {
+            border-top: 1px dashed #111827;
+            margin: 10px 0;
+        }
+
+        .row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+
+        .item { margin-bottom: 10px; }
+
+        .item-name {
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .item-meta {
+            font-size: 11px;
+            color: #374151;
+        }
+
+        .total {
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .footer {
+            margin-top: 12px;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        @media print {
+            body { background: #fff; padding: 0; }
+            .receipt { border: none; }
+        }
+    </style>
+</head>
+
+<body>
+<div class="receipt">
+
+    <div class="center">
+        <div class="title">Struk Tagihan</div>
+        <div class="small">MTs Sunan Kalijaga</div>
+        {% if semester %}
+            <div class="small">Semester: {{ semester.nama }}</div>
+        {% endif %}
+        <div class="small">Tanggal: {{ tanggal_cetak|date:"d-m-Y" }}</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="row"><span>NIS</span><span>{{ siswa.nis }}</span></div>
+    <div class="row"><span>Nama</span><span>{{ siswa.nama }}</span></div>
+    <div class="row"><span>Kelas</span><span>{{ siswa.kelas }}</span></div>
+
+    <div class="divider"></div>
+
+    {% if tagihan_list %}
+
+        {% for tagihan in tagihan_list %}
+            {% if tagihan.nominal > 0 %}
+            <div class="item">
+
+                <div class="item-name">{{ tagihan.jenis.nama }}</div>
+
+                <div class="row">
+                    <span>Nominal</span>
+                    <span>Rp {{ tagihan.nominal|intcomma }}</span>
+                </div>
+
+                <div class="row">
+                    <span>Terbayar</span>
+                    <span>Rp {{ tagihan.total_terbayar|intcomma }}</span>
+                </div>
+
+                <div class="row">
+                    <span>Sisa</span>
+                    <span>Rp {{ tagihan.sisa_tagihan|intcomma }}</span>
+                </div>
+
+                <div class="row">
+                    <span>Status</span>
+                    <span>{{ tagihan.status_pembayaran }}</span>
+                </div>
+
+                <div class="item-meta">
+                    Periode: {{ tagihan.periode|default:"-" }}<br>
+                    Jatuh tempo: {{ tagihan.jatuh_tempo|date:"d-m-Y"|default:"-" }}
+                    {% if tagihan.catatan %}
+                        <br>Catatan: {{ tagihan.catatan }}
+                    {% endif %}
+                </div>
+
+            </div>
+
+            {% if not forloop.last %}
+                <div class="divider"></div>
+            {% endif %}
+            {% endif %}
+        {% endfor %}
+
+    {% else %}
+        <div class="center small">Tidak ada tagihan.</div>
+    {% endif %}
+
+    {% if total_nominal > 0 %}
+    <div class="divider"></div>
+
+    <div class="row total">
+        <span>TOTAL TAGIHAN</span>
+        <span>Rp {{ total_nominal|intcomma }}</span>
+    </div>
+
+    <div class="row total">
+        <span>TOTAL TERBAYAR</span>
+        <span>Rp {{ total_terbayar|intcomma }}</span>
+    </div>
+
+    <div class="row total">
+        <span>TOTAL SISA</span>
+        <span>Rp {{ total_sisa|intcomma }}</span>
+    </div>
+    {% endif %}
+
+    <div class="divider"></div>
+
+    <div class="footer">
+        Bag. Bendahara<br>
+        Nani Rizki Amalia, S.E.
+    </div>
+
+</div>
+</body>
+</html>

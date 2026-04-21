@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Bendahara{% endblock %} - MTs Sunan Kalijaga</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Manrope', 'sans-serif'],
+                    },
+                    colors: {
+                        ocean: '#0f3d4c',
+                        pine: '#165c4f',
+                        sand: '#f7f3eb',
+                        ember: '#d97706',
+                        ink: '#0f172a',
+                    },
+                    boxShadow: {
+                        soft: '0 20px 60px rgba(15, 23, 42, 0.08)',
+                        panel: '0 16px 40px rgba(15, 23, 42, 0.06)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --line: rgba(148, 163, 184, 0.18);
+            --panel: rgba(255, 255, 255, 0.9);
+            --panel-strong: rgba(255, 255, 255, 0.96);
+            --text-soft: #64748b;
+            --brand: #165c4f;
+            --brand-dark: #0f3d4c;
+            --accent: #d97706;
+            --danger: #be123c;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Manrope', sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(14, 165, 233, 0.10), transparent 22%),
+                radial-gradient(circle at top right, rgba(22, 92, 79, 0.10), transparent 24%),
+                linear-gradient(180deg, #f8fafc 0%, #eff6f4 42%, #ffffff 100%);
+        }
+
+        .panel-card {
+            border: 1px solid var(--line);
+            background: var(--panel);
+            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
+            backdrop-filter: blur(14px);
+        }
+
+        .panel-card-strong {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(15, 23, 42, 0.8);
+            box-shadow: 0 24px 80px rgba(15, 23, 42, 0.22);
+            backdrop-filter: blur(18px);
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.85rem;
+            border-radius: 1rem;
+            padding: 0.78rem 0.9rem;
+            color: rgba(226, 232, 240, 0.86);
+            transition: all 180ms ease;
+        }
+
+        .nav-link:hover {
+            transform: translateX(2px);
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+        }
+
+        .nav-link-active {
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        }
+
+        .nav-kicker {
+            display: block;
+            font-size: 0.62rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: rgba(148, 163, 184, 0.9);
+        }
+
+        .nav-label {
+            margin-top: 0.22rem;
+            display: block;
+            font-size: 0.86rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        .btn-primary,
+        .btn-secondary,
+        .btn-success,
+        .btn-danger,
+        .btn-muted {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            border-radius: 1rem;
+            padding: 0.8rem 1.1rem;
+            font-size: 0.95rem;
+            font-weight: 700;
+            transition: all 180ms ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0f3d4c, #165c4f);
+            color: #ffffff;
+            box-shadow: 0 14px 26px rgba(22, 92, 79, 0.18);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 18px 30px rgba(22, 92, 79, 0.24);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #ffffff;
+            box-shadow: 0 14px 26px rgba(37, 99, 235, 0.18);
+        }
+
+        .btn-secondary:hover,
+        .btn-success:hover,
+        .btn-danger:hover,
+        .btn-muted:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #059669, #047857);
+            color: #ffffff;
+            box-shadow: 0 14px 26px rgba(5, 150, 105, 0.18);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #e11d48, #be123c);
+            color: #ffffff;
+            box-shadow: 0 14px 26px rgba(225, 29, 72, 0.18);
+        }
+
+        .btn-muted {
+            border: 1px solid rgba(148, 163, 184, 0.26);
+            background: rgba(255, 255, 255, 0.82);
+            color: #0f172a;
+        }
+
+        .stat-tile {
+            border: 1px solid var(--line);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.92));
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.05);
+        }
+
+        .soft-field,
+        input[type="text"],
+        input[type="password"],
+        input[type="number"],
+        input[type="date"],
+        input[type="file"],
+        select,
+        textarea {
+            width: 100%;
+            border-radius: 1rem;
+            border: 1px solid rgba(148, 163, 184, 0.34);
+            background: rgba(255, 255, 255, 0.94);
+            padding: 0.85rem 1rem;
+            color: #0f172a;
+            outline: none;
+            transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+        }
+
+        .soft-field:focus,
+        input[type="text"]:focus,
+        input[type="password"]:focus,
+        input[type="number"]:focus,
+        input[type="date"]:focus,
+        input[type="file"]:focus,
+        select:focus,
+        textarea:focus {
+            border-color: rgba(37, 99, 235, 0.5);
+            box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.12);
+            background: #ffffff;
+        }
+
+        input[type="checkbox"] {
+            border-radius: 0.4rem;
+        }
+
+        table thead th {
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 9999px;
+            padding: 0.35rem 0.7rem;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .badge-success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-danger {
+            background: #ffe4e6;
+            color: #9f1239;
+        }
+
+        .badge-neutral {
+            background: #e2e8f0;
+            color: #334155;
+        }
+
+        .searchable-helper {
+            margin-bottom: 0.65rem;
+            width: 100%;
+            border-radius: 0.9rem;
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            background: rgba(255, 255, 255, 0.94);
+            padding: 0.72rem 0.95rem;
+            font-size: 0.92rem;
+            color: #0f172a;
+            outline: none;
+        }
+
+        .searchable-helper:focus {
+            border-color: rgba(37, 99, 235, 0.5);
+            box-shadow: 0 0 0 5px rgba(59, 130, 246, 0.12);
+            background: #ffffff;
+        }
+
+        #pageLoader {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 180ms ease, visibility 180ms ease;
+        }
+
+        .popup-overlay {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 180ms ease, visibility 180ms ease;
+        }
+
+        .popup-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        body:not(.page-loading) #pageLoader {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        aside::-webkit-scrollbar {
+            width: 7px;
+        }
+
+        aside::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 999px;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="page-loading min-h-screen text-slate-800">
+    <div id="pageLoader" class="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/60 backdrop-blur-md">
+        <div class="flex min-w-[260px] items-center gap-4 rounded-[1.5rem] border border-white/10 bg-slate-950/92 px-6 py-5 shadow-[0_24px_60px_rgba(15,23,42,0.35)]">
+            <div class="h-12 w-12 animate-spin rounded-full border-[3px] border-slate-700 border-t-emerald-400"></div>
+            <div>
+                <div class="text-base font-extrabold tracking-tight text-white">Memuat halaman</div>
+                <div class="mt-1 text-sm text-slate-300">Menyiapkan data dan tampilan bendahara...</div>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+        <div id="systemMessagePopup" data-popup-overlay class="popup-overlay fixed inset-0 z-[78] flex items-center justify-center bg-slate-950/55 px-4 backdrop-blur-sm">
+            <div class="w-full max-w-xl overflow-hidden rounded-[1.7rem] border border-white/10 bg-white shadow-[0_28px_90px_rgba(15,23,42,0.22)]">
+                <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+                    <div>
+                        <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Notifikasi Sistem</div>
+                        <h3 class="mt-2 text-xl font-bold tracking-tight text-slate-900">Informasi penting untuk operator</h3>
+                    </div>
+                    <button type="button" data-popup-close="systemMessagePopup" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700">
+                        <span class="text-lg leading-none">&times;</span>
+                    </button>
+                </div>
+                <div class="space-y-3 px-6 py-5">
+                    {% for message in messages %}
+                        <div class="rounded-[1.2rem] border px-4 py-4 shadow-sm
+                            {% if message.tags == 'success' %}
+                                border-emerald-200 bg-emerald-50 text-emerald-900
+                            {% elif message.tags == 'error' %}
+                                border-rose-200 bg-rose-50 text-rose-900
+                            {% elif message.tags == 'warning' %}
+                                border-amber-200 bg-amber-50 text-amber-900
+                            {% else %}
+                                border-sky-200 bg-sky-50 text-sky-900
+                            {% endif %}">
+                            <div class="text-xs font-bold uppercase tracking-[0.18em]
+                                {% if message.tags == 'success' %}
+                                    text-emerald-700
+                                {% elif message.tags == 'error' %}
+                                    text-rose-700
+                                {% elif message.tags == 'warning' %}
+                                    text-amber-700
+                                {% else %}
+                                    text-sky-700
+                                {% endif %}">
+                                {% if message.tags == 'success' %}
+                                    Berhasil
+                                {% elif message.tags == 'error' %}
+                                    Perhatian
+                                {% elif message.tags == 'warning' %}
+                                    Pengingat
+                                {% else %}
+                                    Informasi
+                                {% endif %}
+                            </div>
+                            <p class="mt-2 text-sm font-medium leading-7">{{ message }}</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="lg:grid lg:min-h-screen lg:grid-cols-[320px_minmax(0,1fr)]">
+        <div id="sidebarOverlay" class="fixed inset-0 z-30 hidden bg-slate-950/50 backdrop-blur-sm lg:hidden"></div>
+
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 flex w-[292px] -translate-x-full flex-col overflow-y-auto border-r border-white/10 bg-[#0f172a] text-white transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0">
+            <div class="border-b border-white/10 px-5 pb-4 pt-6">
+                <a href="{% url 'bendahara:dashboard' %}" class="block">
+                    <div class="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-300">
+                        Sistem Bendahara
+                    </div>
+                    <h1 class="mt-4 text-xl font-bold tracking-tight text-white">MTs Sunan Kalijaga</h1>
+                    <p class="mt-2 text-xs leading-6 text-slate-400">Panel operasional bendahara yang lebih ringkas dan fokus.</p>
+                </a>
+            </div>
+
+            <div class="flex flex-1 flex-col px-4 py-5">
+                <nav class="space-y-1.5">
+                    <a href="{% url 'bendahara:dashboard' %}" class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}nav-link-active{% endif %}">
+                        <span>
+                            <span class="nav-kicker">Ringkasan</span>
+                            <span class="nav-label">Dashboard</span>
+                        </span>
+                        <span class="text-[10px] text-slate-500">01</span>
+                    </a>
+
+                    <a href="{% url 'bendahara:semester_list' %}" class="nav-link {% if 'semester' in request.resolver_match.url_name %}nav-link-active{% endif %}">
+                        <span>
+                            <span class="nav-kicker">Periode</span>
+                            <span class="nav-label">Semester</span>
+                        </span>
+                        <span class="text-[10px] text-slate-500">02</span>
+                    </a>
+
+                    <a href="{% url 'bendahara:siswa_list' %}" class="nav-link {% if 'siswa' in request.resolver_match.url_name %}nav-link-active{% endif %}">
+                        <span>
+                            <span class="nav-kicker">Master</span>
+                            <span class="nav-label">Siswa</span>
+                        </span>
+                        <span class="text-[10px] text-slate-500">03</span>
+                    </a>
+
+                    <a href="{% url 'bendahara:jenis_pembayaran_list' %}" class="nav-link {% if request.resolver_match.url_name == 'jenis_pembayaran_list' or request.resolver_match.url_name == 'jenis_pembayaran_create' or request.resolver_match.url_name == 'jenis_pembayaran_update' or request.resolver_match.url_name == 'jenis_pembayaran_delete' or request.resolver_match.url_name == 'jenis_pembayaran_toggle' %}nav-link-active{% endif %}">
+                        <span>
+                            <span class="nav-kicker">Master</span>
+                            <span class="nav-label">Jenis Pembayaran</span>
+                        </span>
+                        <span class="text-[10px] text-slate-500">04</span>
+                    </a>
+
+                    <a href="{% url 'bendahara:tagihan_list' %}" class="nav-link {% if 'tagihan' in request.resolver_match.url_name %}nav-link-active{% endif %}">
+                        <span>
+                            <span class="nav-kicker">Penagihan</span>
+                            <span class="nav-label">Tagihan</span>
+                        </span>
+                        <span class="text-[10px] text-slate-500">05</span>
+                    </a>
+
+                    <a href="{% url 'bendahara:pembayaran_list' %}" class="nav-link {% if request.resolver_match.url_name == 'pembayaran_list' or request.resolver_match.url_name == 'pembayaran_create' or request.resolver_match.url_name == 'pembayaran_detail_siswa' or request.resolver_match.url_name == 'pembayaran_download' or request.resolver_match.url_name == 'transaksi_pembayaran_download' %}nav-link-active{% endif %}">
+                        <span>
+                            <span class="nav-kicker">Kas Masuk</span>
+                            <span class="nav-label">Pembayaran</span>
+                        </span>
+                        <span class="text-[10px] text-slate-500">06</span>
+                    </a>
+
+                    <a href="{% url 'bendahara:kas_sekolah' %}" class="nav-link {% if request.resolver_match.url_name == 'kas_sekolah' %}nav-link-active{% endif %}">
+                        <span>
+                            <span class="nav-kicker">Saldo</span>
+                            <span class="nav-label">Kas Sekolah</span>
+                        </span>
+                        <span class="text-[10px] text-slate-500">07</span>
+                    </a>
+
+                    <div class="px-3 pt-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                        Laporan dan Monitoring
+                    </div>
+
+                    <a href="{% url 'bendahara:laporan_semester' %}" class="nav-link {% if 'laporan_semester' in request.resolver_match.url_name %}nav-link-active{% endif %}">
+                        <span>
+                            <span class="nav-kicker">Laporan</span>
+                            <span class="nav-label">Semester</span>
+                        </span>
+                    </a>
+
+                    <a href="{% url 'bendahara:laporan_bulanan' %}" class="nav-link {% if 'laporan_bulanan' in request.resolver_match.url_name %}nav-link-active{% endif %}">
+                        <span>
+                            <span class="nav-kicker">Laporan</span>
+                            <span class="nav-label">Bulanan</span>
+                        </span>
+                    </a>
+
+                    <a href="{% url 'bendahara:laporan_pondok' %}" class="nav-link {% if 'laporan_pondok' in request.resolver_match.url_name %}nav-link-active{% endif %}">
+                        <span>
+                            <span class="nav-kicker">Laporan</span>
+                            <span class="nav-label">Pondok</span>
+                        </span>
+                    </a>
+
+                    <a href="{% url 'bendahara:laporan_jenis_pembayaran' %}" class="nav-link {% if 'laporan_jenis_pembayaran' in request.resolver_match.url_name %}nav-link-active{% endif %}">
+                        <span>
+                            <span class="nav-kicker">Laporan</span>
+                            <span class="nav-label">Per Jenis</span>
+                        </span>
+                    </a>
+
+                    <a href="{% url 'bendahara:laporan_siswa' %}" class="nav-link {% if 'laporan_siswa' in request.resolver_match.url_name %}nav-link-active{% endif %}">
+                        <span>
+                            <span class="nav-kicker">Laporan</span>
+                            <span class="nav-label">Per Siswa</span>
+                        </span>
+                    </a>
+
+                    <a href="{% url 'bendahara:laporan_tunggakan' %}" class="nav-link {% if 'laporan_tunggakan' in request.resolver_match.url_name %}nav-link-active{% endif %}">
+                        <span>
+                            <span class="nav-kicker">Laporan</span>
+                            <span class="nav-label">Tunggakan</span>
+                        </span>
+                    </a>
+                </nav>
+
+                <div class="mt-5 rounded-[1.25rem] border border-white/10 bg-white/5 p-3.5 backdrop-blur">
+                    <div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Akses Cepat</div>
+                    <div class="mt-3 space-y-2">
+                        <a href="{% url 'home' %}" class="block rounded-lg border border-white/10 px-3.5 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-white/5">Portal Awal</a>
+                        <a href="{% url 'monitoring_bendahara' %}" class="block rounded-lg border border-white/10 px-3.5 py-2.5 text-sm font-medium text-slate-200 transition hover:bg-white/5">Monitoring Baca-Saja</a>
+                    </div>
+                </div>
+
+                <div class="mt-auto pt-6">
+                    <div class="rounded-[1.25rem] border border-white/10 bg-white/5 p-4 backdrop-blur">
+                        <div class="text-[10px] uppercase tracking-[0.18em] text-slate-500">Operator Aktif</div>
+                        <div class="mt-2 text-sm font-semibold text-white">{{ request.user.username|default:"Bendahara" }}</div>
+                        <p class="mt-2 text-xs leading-6 text-slate-400">Catat transaksi dan pengeluaran di hari yang sama agar laporan tetap sinkron.</p>
+                        <a href="{% url 'bendahara:logout' %}" class="btn-danger mt-4 w-full">Logout</a>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <div class="min-w-0">
+            <header class="sticky top-0 z-20 border-b border-white/60 bg-white/80 backdrop-blur-xl">
+                <div class="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-5 py-4 lg:px-8">
+                    <div class="flex min-w-0 items-center gap-3">
+                        <button id="sidebarToggle" type="button" class="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm lg:hidden">
+                            <span class="text-xl leading-none">≡</span>
+                        </button>
+                        <div class="min-w-0">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Panel Bendahara</div>
+                            <h2 class="truncate text-xl font-extrabold tracking-tight text-slate-950">{% block page_title %}Dashboard{% endblock %}</h2>
+                            <p class="mt-1 hidden text-sm text-slate-500 md:block">{% block page_subtitle %}Kelola data keuangan sekolah dengan tampilan kerja yang lebih fokus dan rapi.{% endblock %}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        {% block page_actions %}{% endblock %}
+                        <div class="hidden rounded-2xl border border-slate-200 bg-white px-4 py-3 text-right shadow-sm md:block">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Status Sistem</div>
+                            <div class="mt-1 text-sm font-bold text-slate-900">Siap Operasional</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="mx-auto max-w-[1600px] space-y-6 px-5 py-6 lg:px-8 lg:py-8">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const pageLoader = document.getElementById('pageLoader');
+            const sidebar = document.getElementById('sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            const overlay = document.getElementById('sidebarOverlay');
+            const popupOverlays = Array.from(document.querySelectorAll('[data-popup-overlay]'));
+            const searchableSelects = Array.from(document.querySelectorAll('select[data-searchable="true"]'));
+            let closeSidebar = () => {};
+
+            const hidePageLoader = () => {
+                document.body.classList.remove('page-loading');
+            };
+
+            const showPageLoader = () => {
+                document.body.classList.add('page-loading');
+            };
+
+            window.addEventListener('load', hidePageLoader);
+            document.addEventListener('DOMContentLoaded', () => {
+                window.setTimeout(hidePageLoader, 120);
+            });
+
+            const syncBodyScrollLock = () => {
+                const sidebarOpen = Boolean(
+                    sidebar &&
+                    overlay &&
+                    window.innerWidth < 1024 &&
+                    !overlay.classList.contains('hidden')
+                );
+                const popupOpen = popupOverlays.some((popup) => !popup.classList.contains('hidden'));
+                document.body.classList.toggle('overflow-hidden', sidebarOpen || popupOpen);
+            };
+
+            const closePopup = (popupId) => {
+                const popup = document.getElementById(popupId);
+                if (!popup) {
+                    return;
+                }
+
+                popup.classList.add('hidden');
+                syncBodyScrollLock();
+            };
+
+            if (!sidebar || !toggle || !overlay) {
+                hidePageLoader();
+            }
+
+            if (sidebar && toggle && overlay) {
+                const openSidebar = () => {
+                    sidebar.classList.remove('-translate-x-full');
+                    overlay.classList.remove('hidden');
+                    syncBodyScrollLock();
+                };
+
+                closeSidebar = () => {
+                    sidebar.classList.add('-translate-x-full');
+                    overlay.classList.add('hidden');
+                    syncBodyScrollLock();
+                };
+
+                toggle.addEventListener('click', () => {
+                    if (sidebar.classList.contains('-translate-x-full')) {
+                        openSidebar();
+                    } else {
+                        closeSidebar();
+                    }
+                });
+
+                overlay.addEventListener('click', closeSidebar);
+
+                window.addEventListener('resize', () => {
+                    if (window.innerWidth >= 1024) {
+                        overlay.classList.add('hidden');
+                        sidebar.classList.remove('-translate-x-full');
+                    } else {
+                        sidebar.classList.add('-translate-x-full');
+                    }
+                    syncBodyScrollLock();
+                });
+            }
+
+            document.querySelectorAll('[data-popup-close]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    closePopup(button.dataset.popupClose);
+                });
+            });
+
+            document.querySelectorAll('[data-popup-open]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const popup = document.getElementById(button.dataset.popupOpen);
+                    if (!popup) {
+                        return;
+                    }
+
+                    popup.classList.remove('hidden');
+                    syncBodyScrollLock();
+                });
+            });
+
+            popupOverlays.forEach((popup) => {
+                popup.addEventListener('click', (event) => {
+                    if (event.target !== popup || popup.dataset.popupDismissable === 'false') {
+                        return;
+                    }
+
+                    popup.classList.add('hidden');
+                    syncBodyScrollLock();
+                });
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key !== 'Escape') {
+                    return;
+                }
+
+                const visiblePopup = [...popupOverlays].reverse().find((popup) => !popup.classList.contains('hidden'));
+                if (visiblePopup && visiblePopup.dataset.popupDismissable !== 'false') {
+                    visiblePopup.classList.add('hidden');
+                    syncBodyScrollLock();
+                    return;
+                }
+
+                if (sidebar && overlay && !overlay.classList.contains('hidden') && window.innerWidth < 1024) {
+                    closeSidebar();
+                }
+            });
+
+            searchableSelects.forEach((select) => {
+                if (select.dataset.searchEnhanced === 'true') {
+                    return;
+                }
+
+                const allOptions = Array.from(select.options).map((option) => ({
+                    value: option.value,
+                    text: option.text,
+                    selected: option.selected,
+                }));
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'searchable-helper';
+                input.placeholder = select.dataset.searchPlaceholder || 'Cari pilihan...';
+                input.autocomplete = 'off';
+
+                select.parentNode.insertBefore(input, select);
+                select.dataset.searchEnhanced = 'true';
+
+                const renderOptions = (keyword) => {
+                    const selectedValue = select.value;
+                    const normalizedKeyword = (keyword || '').trim().toLowerCase();
+                    const filteredOptions = allOptions.filter((option) => {
+                        if (!normalizedKeyword) {
+                            return true;
+                        }
+                        return option.text.toLowerCase().includes(normalizedKeyword);
+                    });
+
+                    select.innerHTML = '';
+                    filteredOptions.forEach((option) => {
+                        const optionElement = document.createElement('option');
+                        optionElement.value = option.value;
+                        optionElement.textContent = option.text;
+                        optionElement.selected = option.value === selectedValue;
+                        select.appendChild(optionElement);
+                    });
+
+                    if (selectedValue && !filteredOptions.some((option) => option.value === selectedValue)) {
+                        const selectedOption = allOptions.find((option) => option.value === selectedValue);
+                        if (selectedOption) {
+                            const optionElement = document.createElement('option');
+                            optionElement.value = selectedOption.value;
+                            optionElement.textContent = selectedOption.text;
+                            optionElement.selected = true;
+                            select.insertBefore(optionElement, select.firstChild);
+                        }
+                    }
+                };
+
+                input.addEventListener('input', (event) => {
+                    renderOptions(event.target.value);
+                });
+            });
+
+            document.querySelectorAll('form').forEach((form) => {
+                form.addEventListener('submit', (event) => {
+                    const submitter = event.submitter;
+                    if (submitter && submitter.dataset.skipLoading === 'true') {
+                        return;
+                    }
+                    showPageLoader();
+                });
+            });
+
+            syncBodyScrollLock();
+        })();
+    </script>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

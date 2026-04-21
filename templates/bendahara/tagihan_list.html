@@ -1,0 +1,170 @@
+{% extends 'bendahara/base.html' %}
+{% load humanize %}
+
+{% block title %}Data Tagihan{% endblock %}
+{% block page_title %}Data Tagihan{% endblock %}
+{% block page_subtitle %}Lihat posisi tagihan per siswa, total terbayar, sisa kekurangan, dan tindak lanjut yang perlu dilakukan.{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+    <!-- INFO -->
+    <div class="grid gap-4 md:grid-cols-3">
+        <div class="panel-card rounded-3xl p-5">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Mode Kerja</div>
+            <div class="mt-3 text-lg font-semibold text-slate-900">Kelola tagihan per siswa</div>
+            <p class="mt-2 text-sm text-slate-500">Operator bisa melihat status pembayaran tanpa perlu pindah halaman terlalu sering.</p>
+        </div>
+
+        <div class="panel-card rounded-3xl p-5">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Fokus</div>
+            <div class="mt-3 text-lg font-semibold text-slate-900">Pantau sisa tagihan</div>
+            <p class="mt-2 text-sm text-slate-500">Kolom terbayar dan sisa membantu menentukan siswa yang perlu ditindaklanjuti.</p>
+        </div>
+
+        <div class="panel-card rounded-3xl p-5 bg-[linear-gradient(135deg,rgba(17,75,58,0.08),rgba(184,104,46,0.12))]">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Aksi Cepat</div>
+            <div class="mt-3 text-lg font-semibold text-slate-900">Buat atau revisi tagihan</div>
+            <p class="mt-2 text-sm text-slate-600">Gunakan tombol pilih siswa saat ada periode baru atau ada koreksi nominal.</p>
+        </div>
+    </div>
+
+    <!-- PANEL -->
+    <div class="panel-card overflow-hidden rounded-3xl">
+
+        <!-- HEADER -->
+        <div class="px-6 py-5 border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+                <h3 class="text-xl font-semibold text-slate-900">Tagihan Per Siswa</h3>
+                <p class="text-sm text-slate-500">Pantau hubungan tagihan dan pembayaran siswa dalam satu tampilan ringkas.</p>
+            </div>
+
+            <a href="{% url 'bendahara:tagihan_create' %}{% if semester_aktif %}?semester={{ semester_aktif.id }}{% endif %}" 
+               class="inline-flex items-center justify-center px-4 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow-sm">
+                Pilih Siswa
+            </a>
+        </div>
+
+        <!-- 🔥 FILTER SEMESTER -->
+        <div class="px-6 py-4 border-b border-slate-200/80">
+            <form method="get" class="flex flex-col md:flex-row gap-3 md:items-end">
+
+                <div class="w-full md:w-1/3">
+                    <label class="text-sm text-slate-600">Pilih Semester</label>
+                    <select name="semester" class="mt-1 w-full rounded-xl border-slate-300 focus:ring focus:ring-blue-200">
+                        {% for s in semester_list %}
+                        <option value="{{ s.id }}"
+                            {% if semester_aktif and semester_aktif.id == s.id %}selected{% endif %}>
+                            {{ s.nama }}
+                            {% if s.aktif %} (Aktif){% endif %}
+                        </option>
+                        {% endfor %}
+
+                    </select>
+                </div>
+
+                <div>
+                    <button type="submit"
+                        class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
+                        Filter
+                    </button>
+                </div>
+
+            </form>
+
+            {% if semester_aktif %}
+            <p class="text-sm text-blue-600 mt-2">
+                Menampilkan data semester: {{ semester_aktif.nama }}
+            </p>
+            {% endif %}
+        </div>
+
+        <!-- TABLE -->
+        <div class="overflow-x-auto data-table">
+            <table class="min-w-full divide-y divide-slate-200">
+
+                <thead class="bg-slate-50/80">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">NIS</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Nama Siswa</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Kelas</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Tagihan</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Total</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Terbayar</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Sisa</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Aksi</th>
+                    </tr>
+                </thead>
+
+                <tbody class="divide-y divide-slate-200 bg-white">
+                    {% for siswa in siswa_list %}
+                    <tr class="hover:bg-amber-50/40 transition-colors">
+
+                        <td class="px-6 py-4 text-sm">{{ siswa.nis }}</td>
+
+                        <td class="px-6 py-4">
+                            <div class="font-semibold">{{ siswa.nama }}</div>
+                            <div class="text-xs text-slate-500">Siswa aktif</div>
+                        </td>
+
+                        <td class="px-6 py-4 text-sm">{{ siswa.kelas }}</td>
+
+                        <td class="px-6 py-4 text-sm">{{ siswa.total_tagihan }}</td>
+
+                        <td class="px-6 py-4">Rp {{ siswa.total_nominal|intcomma }}</td>
+
+                        <td class="px-6 py-4 text-emerald-700">Rp {{ siswa.total_terbayar|intcomma }}</td>
+
+                        <td class="px-6 py-4 text-red-700 font-semibold">Rp {{ siswa.total_sisa|intcomma }}</td>
+
+                        <td class="px-6 py-4">
+                            {% if siswa.status_tagihan == 'Lunas' %}
+                                <span class="px-3 py-1 rounded-full bg-green-100 text-green-700">Lunas</span>
+                            {% elif siswa.status_tagihan == 'Cicilan' %}
+                                <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-700">Cicilan</span>
+                            {% elif siswa.status_tagihan == 'Belum Bayar' %}
+                                <span class="px-3 py-1 rounded-full bg-red-100 text-red-700">Belum Bayar</span>
+                            {% else %}
+                                <span class="px-3 py-1 rounded-full bg-slate-200 text-slate-700">Belum Ada</span>
+                            {% endif %}
+                        </td>
+
+                        <td class="px-6 py-4">
+                            <div class="flex gap-2 flex-wrap">
+
+                                <a href="{% url 'bendahara:tagihan_update' siswa.id %}{% if semester_aktif %}?semester={{ semester_aktif.id }}{% endif %}" 
+                                   class="px-3 py-2 rounded-xl bg-amber-500 text-white">
+                                    Edit
+                                </a>
+
+                                <a href="{% url 'bendahara:pembayaran_detail_siswa' siswa.id %}{% if semester_aktif %}?semester={{ semester_aktif.id }}{% endif %}" 
+                                   class="px-3 py-2 rounded-xl bg-emerald-600 text-white">
+                                    Detail
+                                </a>
+
+                                <a href="{% url 'bendahara:tagihan_download' siswa.id %}{% if semester_aktif %}?semester={{ semester_aktif.id }}{% endif %}" 
+                                   class="px-3 py-2 rounded-xl bg-slate-700 text-white">
+                                    Download
+                                </a>
+
+                            </div>
+                        </td>
+
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center py-6 text-slate-500">
+                            Belum ada data siswa.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,114 @@
+{% extends 'bendahara/base.html' %}
+
+{% block title %}Buat Tagihan Per Semester{% endblock %}
+{% block page_title %}Buat Tagihan Semester{% endblock %}
+{% block page_subtitle %}Gunakan fitur ini untuk membuat tagihan massal berdasarkan semester dan jenis pembayaran yang dipilih.{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-4xl space-y-6">
+    <div class="grid gap-4 md:grid-cols-3">
+        <div class="panel-card rounded-[1.6rem] p-5">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Massal</div>
+            <div class="mt-3 text-lg font-semibold text-slate-900">Buat tagihan sekaligus</div>
+            <p class="mt-2 text-sm leading-6 text-slate-500">Semua siswa aktif pada semester terpilih bisa langsung dibuatkan tagihan tanpa input satu per satu.</p>
+        </div>
+        <div class="panel-card rounded-[1.6rem] p-5">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Konsistensi</div>
+            <div class="mt-3 text-lg font-semibold text-slate-900">Nominal lebih seragam</div>
+            <p class="mt-2 text-sm leading-6 text-slate-500">Cocok dipakai saat nominal berlaku sama untuk seluruh siswa dalam satu jenis pembayaran.</p>
+        </div>
+        <div class="panel-card rounded-[1.6rem] bg-[linear-gradient(135deg,rgba(15,61,76,0.08),rgba(22,92,79,0.08),rgba(217,119,6,0.08))] p-5">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Perhatian</div>
+            <div class="mt-3 text-lg font-semibold text-slate-900">Cek semester dan jenis</div>
+            <p class="mt-2 text-sm leading-6 text-slate-600">Pastikan tidak menggandakan tagihan yang sudah pernah dibuat pada periode yang sama.</p>
+        </div>
+    </div>
+
+    <div class="panel-card rounded-[1.9rem] p-6 lg:p-8">
+        <div class="mb-6 border-b border-slate-200 pb-5">
+            <h3 class="text-2xl font-bold text-slate-900">Form pembuatan tagihan massal</h3>
+            <p class="mt-2 text-sm leading-7 text-slate-500">
+                Pilih semester dan jenis pembayaran yang ingin dibuatkan tagihannya, lalu tentukan nominal per siswa.
+            </p>
+        </div>
+
+        {% if form.errors %}
+            <div class="mb-5 rounded-[1.4rem] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-800">
+                <div class="font-semibold">Ada data yang perlu diperbaiki.</div>
+                <ul class="mt-2 list-disc space-y-1 pl-5">
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <div class="mb-6 rounded-[1.4rem] border border-sky-200 bg-sky-50 px-5 py-4 text-sm leading-7 text-sky-900">
+            Fitur ini akan membuat tagihan untuk semua siswa aktif secara sekaligus. Gunakan saat membuka periode baru agar proses awal jauh lebih cepat.
+        </div>
+
+        <form method="post" class="space-y-5">
+            {% csrf_token %}
+
+            <div>
+                <label for="{{ form.semester.id_for_label }}" class="mb-2 block text-sm font-semibold text-slate-700">Semester</label>
+                {{ form.semester }}
+            </div>
+
+            <div>
+                <label class="mb-2 block text-sm font-semibold text-slate-700">Jenis Pembayaran</label>
+                <div class="rounded-[1.3rem] border border-slate-200 bg-slate-50 px-4 py-4">
+                    <input type="text" id="jenisPembayaranSearch" placeholder="Cari jenis pembayaran..." class="searchable-helper mb-4">
+                    {{ form.jenis_pembayaran }}
+                </div>
+                <p class="mt-2 text-xs text-slate-500">Pilih satu atau lebih jenis pembayaran yang ingin dibuat tagihannya.</p>
+            </div>
+
+            <div class="grid gap-5 md:grid-cols-2">
+                <div>
+                    <label for="{{ form.nominal.id_for_label }}" class="mb-2 block text-sm font-semibold text-slate-700">Nominal per Siswa</label>
+                    {{ form.nominal }}
+                    <p class="mt-2 text-xs text-slate-500">Nominal yang sama akan diterapkan untuk semua siswa aktif.</p>
+                </div>
+                <div>
+                    <label for="{{ form.jatuh_tempo.id_for_label }}" class="mb-2 block text-sm font-semibold text-slate-700">Jatuh Tempo</label>
+                    {{ form.jatuh_tempo }}
+                    <p class="mt-2 text-xs text-slate-500">Opsional. Isi jika ingin langsung menentukan batas pembayaran.</p>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-between">
+                <a href="{% url 'bendahara:tagihan_list' %}" class="btn-muted">Kembali ke Tagihan</a>
+                <button type="submit" class="btn-primary">Buat Tagihan Massal</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    (function () {
+        const searchInput = document.getElementById('jenisPembayaranSearch');
+        const checkboxContainer = document.getElementById('id_jenis_pembayaran');
+
+        if (!searchInput || !checkboxContainer) {
+            return;
+        }
+
+        const optionRows = Array.from(checkboxContainer.children);
+        searchInput.addEventListener('input', (event) => {
+            const keyword = event.target.value.trim().toLowerCase();
+            optionRows.forEach((row) => {
+                const text = row.textContent.trim().toLowerCase();
+                row.style.display = !keyword || text.includes(keyword) ? '' : 'none';
+            });
+        });
+    })();
+</script>
+{% endblock %}

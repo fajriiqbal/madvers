@@ -1,0 +1,164 @@
+{% extends 'bendahara/base.html' %}
+{% load humanize %}
+
+{% block title %}Laporan Per Semester{% endblock %}
+{% block page_title %}Laporan Per Semester{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+    <!-- Info Cards -->
+    <div class="grid gap-4 md:grid-cols-3">
+        <div class="panel-card rounded-3xl p-5">
+            <div class="text-xs uppercase text-slate-400 tracking-widest">Ringkasan</div>
+            <div class="mt-2 text-lg font-semibold text-slate-900">Data pembayaran semester</div>
+            <p class="text-sm text-slate-500 mt-2">Lihat total tagihan dan pembayaran dalam satu semester.</p>
+        </div>
+
+        <div class="panel-card rounded-3xl p-5">
+            <div class="text-xs uppercase text-slate-400 tracking-widest">Analisis</div>
+            <div class="mt-2 text-lg font-semibold text-slate-900">Pantau tingkat pelunasan</div>
+            <p class="text-sm text-slate-500 mt-2">Bandingkan jumlah lunas dan tunggakan.</p>
+        </div>
+
+        <div class="panel-card rounded-3xl p-5 bg-[linear-gradient(135deg,rgba(37,99,235,0.08),rgba(239,68,68,0.08))]">
+            <div class="text-xs uppercase text-slate-400 tracking-widest">Aksi</div>
+            <div class="mt-2 text-lg font-semibold text-slate-900">Optimalkan penagihan</div>
+            <p class="text-sm text-slate-500 mt-2">Fokus pada pembayaran yang belum selesai.</p>
+        </div>
+    </div>
+
+    <!-- Filter -->
+    <div class="panel-card rounded-3xl p-5">
+        <form method="get" class="flex flex-col md:flex-row gap-4 md:items-end md:flex-wrap">
+            <div class="w-full md:w-1/3">
+                <label class="text-sm text-slate-600">Pilih Semester</label>
+                <select name="semester" data-searchable="true" data-search-placeholder="Cari semester" class="mt-1 w-full rounded-xl border-slate-300">
+                    {% for s in semester_list %}
+                    <option value="{{ s.id }}" {% if semester and semester.id == s.id %}selected{% endif %}>
+                        {{ s.nama }}{% if s.aktif %} (Aktif){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
+                    Filter
+                </button>
+            </div>
+
+            <div>
+                <button type="submit" name="export" value="pdf" data-skip-loading="true" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold shadow-sm">
+                    Export PDF
+                </button>
+            </div>
+
+            <div>
+                <button type="submit" name="export" value="xlsx" data-skip-loading="true" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm">
+                    Export Excel
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Summary -->
+    <div class="grid gap-4 md:grid-cols-3">
+
+        <div class="panel-card p-5 rounded-2xl">
+            <div class="text-xs text-slate-400">Total Tagihan</div>
+            <div class="text-xl font-bold text-blue-600">
+                Rp {{ total_nominal|intcomma }}
+            </div>
+        </div>
+
+        <div class="panel-card p-5 rounded-2xl">
+            <div class="text-xs text-slate-400">Total Terbayar</div>
+            <div class="text-xl font-bold text-green-600">
+                Rp {{ total_terbayar|intcomma }}
+            </div>
+        </div>
+
+        <div class="panel-card p-5 rounded-2xl">
+            <div class="text-xs text-slate-400">Total Tunggakan</div>
+            <div class="text-xl font-bold text-red-600">
+                Rp {{ total_sisa|intcomma }}
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Table -->
+    <div class="panel-card overflow-hidden rounded-3xl">
+
+        <div class="px-6 py-5 border-b border-slate-200/80">
+            <h3 class="text-xl font-semibold text-slate-900">Detail Per Jenis Pembayaran</h3>
+            <p class="text-sm text-slate-500">Ringkasan performa pembayaran per kategori.</p>
+        </div>
+
+        <div class="overflow-x-auto data-table">
+            <table class="min-w-full divide-y divide-slate-200">
+
+                <thead class="bg-slate-50/80">
+                    <tr>
+                        <th class="px-6 py-3 text-xs text-slate-600">Jenis</th>
+                        <th class="px-6 py-3 text-xs text-slate-600">Siswa</th>
+                        <th class="px-6 py-3 text-xs text-slate-600">Tagihan</th>
+                        <th class="px-6 py-3 text-xs text-slate-600">Terbayar</th>
+                        <th class="px-6 py-3 text-xs text-slate-600">Sisa</th>
+                        <th class="px-6 py-3 text-xs text-slate-600">Progress</th>
+                    </tr>
+                </thead>
+
+                <tbody class="divide-y divide-slate-200 bg-white">
+                    {% for item in jenis_pembayaran_summary %}
+                    <tr class="hover:bg-blue-50/40">
+
+                        <td class="px-6 py-4 font-semibold text-slate-900">
+                            {{ item.jenis.nama }}
+                        </td>
+
+                        <td class="px-6 py-4 text-sm text-slate-700">
+                            {{ item.jumlah_siswa }} siswa
+                        </td>
+
+                        <td class="px-6 py-4 text-sm">
+                            Rp {{ item.total_nominal|intcomma }}
+                        </td>
+
+                        <td class="px-6 py-4 text-green-600 text-sm">
+                            Rp {{ item.total_terbayar|intcomma }}
+                        </td>
+
+                        <td class="px-6 py-4 text-red-600 text-sm font-semibold">
+                            Rp {{ item.total_sisa|intcomma }}
+                        </td>
+
+                        <td class="px-6 py-4 w-48">
+                            <div class="w-full bg-slate-200 rounded-full h-2">
+                                <div class="bg-green-500 h-2 rounded-full"
+                                     style="width: {{ item.persen_lunas|floatformat:0 }}%;">
+                                </div>
+                            </div>
+                            <div class="text-xs text-slate-500 mt-1">
+                                {{ item.persen_lunas|floatformat:1 }}%
+                            </div>
+                        </td>
+
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-slate-500">
+                            Belum ada data.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

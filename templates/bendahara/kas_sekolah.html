@@ -1,0 +1,350 @@
+{% extends 'bendahara/base.html' %}
+{% load humanize %}
+
+{% block title %}Kas Sekolah{% endblock %}
+{% block page_title %}Kas Sekolah{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+        <div class="panel-card rounded-3xl p-6">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Arus Kas</div>
+            <h3 class="mt-3 text-xl font-semibold text-slate-900">Ringkasan Kas Masuk, Kas Keluar, dan Saldo</h3>
+            <p class="mt-2 text-sm text-slate-500">
+                Halaman ini dibuat untuk membantu bendahara melihat posisi kas secara cepat, lalu mencatat
+                pengeluaran resmi sekolah tanpa menghitung manual lagi.
+            </p>
+        </div>
+        <div class="panel-card rounded-3xl p-6 bg-[linear-gradient(135deg,rgba(16,185,129,0.08),rgba(239,68,68,0.08))]">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Praktik Baik</div>
+            <div class="mt-3 space-y-2 text-sm text-slate-600">
+                <div>1. Catat pengeluaran segera setelah dana digunakan.</div>
+                <div>2. Pakai judul dan kategori yang jelas agar laporan mudah diaudit.</div>
+                <div>3. Jika pengeluaran terkait UHB, SPP, atau jenis lain, isi alokasi jenis pembayaran agar rekap per pos dana otomatis terbaca.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel-card rounded-3xl p-5">
+        <form method="get" class="flex flex-col md:flex-row gap-4 md:items-end">
+            <div class="w-full md:w-1/3">
+                <label class="text-sm text-slate-600">Semester</label>
+                <select name="semester" data-searchable="true" data-search-placeholder="Cari semester" class="mt-1 w-full rounded-xl border-slate-300">
+                    {% for semester in semester_list %}
+                    <option value="{{ semester.id }}" {% if current_semester and current_semester.id == semester.id %}selected{% endif %}>
+                        {{ semester.nama }}{% if semester.aktif %} (Aktif){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
+                    Tampilkan
+                </button>
+                <a href="{% url 'bendahara:kas_sekolah' %}" class="px-5 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold shadow-sm">
+                    Reset
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Seharusnya Masuk Keseluruhan</div>
+            <div class="mt-2 text-2xl font-bold text-blue-700">Rp {{ total_target_masuk_keseluruhan|intcomma }}</div>
+            <div class="mt-2 text-sm text-slate-500">Total seluruh tagihan yang sudah dibuat di sistem.</div>
+        </div>
+
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Pembayaran Sudah Masuk</div>
+            <div class="mt-2 text-2xl font-bold text-emerald-700">Rp {{ total_realisasi_masuk_keseluruhan|intcomma }}</div>
+            <div class="mt-2 text-sm text-slate-500">Akumulasi pembayaran yang benar-benar sudah diterima.</div>
+        </div>
+
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Pengeluaran Keseluruhan</div>
+            <div class="mt-2 text-2xl font-bold text-red-700">Rp {{ total_pengeluaran_keseluruhan|intcomma }}</div>
+            <div class="mt-2 text-sm text-slate-500">Semua pengeluaran bendahara yang telah dicatat.</div>
+        </div>
+
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Saldo Aktual Keseluruhan</div>
+            <div class="mt-2 text-2xl font-bold {% if saldo_aktual_keseluruhan >= 0 %}text-blue-700{% else %}text-red-700{% endif %}">
+                Rp {{ saldo_aktual_keseluruhan|intcomma }}
+            </div>
+            <div class="mt-2 text-sm text-slate-500">Pembayaran masuk dikurangi pengeluaran tercatat.</div>
+        </div>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-3">
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Ringkasan Semester Dipilih</div>
+            <div class="mt-3 grid grid-cols-1 gap-2 text-sm">
+                <div>
+                    <div class="text-slate-500">Seharusnya masuk</div>
+                    <div class="font-semibold text-blue-700">Rp {{ total_target_masuk|intcomma }}</div>
+                </div>
+                <div>
+                    <div class="text-slate-500">Sudah masuk</div>
+                    <div class="font-semibold text-emerald-700">Rp {{ total_realisasi_masuk|intcomma }}</div>
+                </div>
+                <div>
+                    <div class="text-slate-500">Belum masuk</div>
+                    <div class="font-semibold text-amber-700">Rp {{ sisa_target_belum_masuk|intcomma }}</div>
+                </div>
+                <div>
+                    <div class="text-slate-500">Pengeluaran</div>
+                    <div class="font-semibold text-red-700">Rp {{ total_pengeluaran|intcomma }}</div>
+                </div>
+                <div>
+                    <div class="text-slate-500">Saldo aktual</div>
+                    <div class="font-semibold {% if saldo_aktual >= 0 %}text-blue-700{% else %}text-red-700{% endif %}">Rp {{ saldo_aktual|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Aktivitas Hari Ini</div>
+            <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
+                <div>
+                    <div class="text-slate-500">Pembayaran masuk</div>
+                    <div class="font-semibold text-emerald-700">Rp {{ total_kas_masuk_hari_ini|intcomma }}</div>
+                </div>
+                <div>
+                    <div class="text-slate-500">Pengeluaran</div>
+                    <div class="font-semibold text-red-700">Rp {{ total_kas_keluar_hari_ini|intcomma }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Cakupan Data</div>
+            <div class="mt-3 text-sm text-slate-600">
+                Ringkasan atas menampilkan target pemasukan, realisasi pembayaran masuk, dan pengeluaran seluruh sekolah.
+                Riwayat transaksi dan pengeluaran di bawah mengikuti semester yang sedang dipilih:
+                <span class="font-semibold text-slate-900">{{ current_semester.nama|default:"Semua data" }}</span>.
+            </div>
+        </div>
+    </div>
+
+    <div class="panel-card overflow-hidden rounded-3xl">
+        <div class="px-6 py-5 border-b border-slate-200/80">
+            <h4 class="text-lg font-semibold text-slate-900">Pos Dana per Jenis Pembayaran</h4>
+            <p class="text-sm text-slate-500">
+                Rekap ini membantu melihat dana per jenis pembayaran seperti UHB, SPP, dan lainnya:
+                berapa target tagihannya, berapa yang sudah masuk, berapa yang sudah dipakai, dan berapa sisanya.
+            </p>
+        </div>
+
+        <div class="overflow-x-auto data-table">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50/80">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Jenis Pembayaran</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Target</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Masuk</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Dipakai</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Kurang Bayar</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Saldo Dana</th>
+                    </tr>
+                </thead>
+
+                <tbody class="divide-y divide-slate-200 bg-white">
+                    {% for row in jenis_keuangan_rows %}
+                        <tr class="hover:bg-blue-50/30">
+                            <td class="px-6 py-4">
+                                <div class="font-semibold text-slate-900">{{ row.jenis.nama }}</div>
+                                <div class="text-xs text-slate-500">
+                                    {% if row.jenis.is_bulanan %}
+                                        Bulanan {{ row.jenis.jumlah_bulan_per_semester }} bulan per semester
+                                    {% else %}
+                                        Tagihan semester / satuan
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 text-sm font-semibold text-slate-900">Rp {{ row.target|intcomma }}</td>
+                            <td class="px-6 py-4 text-sm font-semibold text-emerald-700">Rp {{ row.masuk|intcomma }}</td>
+                            <td class="px-6 py-4 text-sm font-semibold text-red-700">Rp {{ row.keluar|intcomma }}</td>
+                            <td class="px-6 py-4 text-sm font-semibold {% if row.sisa_tagihan > 0 %}text-amber-700{% else %}text-emerald-700{% endif %}">
+                                Rp {{ row.sisa_tagihan|intcomma }}
+                            </td>
+                            <td class="px-6 py-4 text-sm font-semibold {% if row.saldo_dana >= 0 %}text-blue-700{% else %}text-red-700{% endif %}">
+                                Rp {{ row.saldo_dana|intcomma }}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="px-6 py-8 text-center text-slate-500">
+                                Belum ada rekap dana per jenis pembayaran untuk semester ini.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <div class="panel-card rounded-3xl p-6">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Kas Keluar</div>
+                    <h4 class="mt-3 text-lg font-semibold text-slate-900">Catat Pengeluaran Bendahara</h4>
+                    <p class="mt-2 text-sm text-slate-500">Masukkan kebutuhan sekolah seperti ATK, transport, konsumsi, atau operasional lainnya. Jika pengeluaran berasal dari dana jenis pembayaran tertentu, isi alokasinya.</p>
+                </div>
+                <div class="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-600">
+                    {{ jumlah_pengeluaran }} pengeluaran
+                </div>
+            </div>
+
+            <form method="post" class="mt-6 space-y-5">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {{ form.non_field_errors }}
+                    </div>
+                {% endif %}
+
+                <div class="grid gap-5 md:grid-cols-2">
+                    {% for field in form %}
+                        <div class="{% if field.name == 'keterangan' %}md:col-span-2{% endif %}">
+                            <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-2">
+                                {{ field.label }}
+                            </label>
+                            {{ field }}
+                            {% if field.errors %}
+                                <p class="mt-2 text-sm text-red-600">{{ field.errors|striptags }}</p>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <button type="submit" class="inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-semibold shadow-sm">
+                    Simpan Pengeluaran
+                </button>
+            </form>
+        </div>
+
+        <div class="space-y-6">
+            <div class="panel-card rounded-3xl p-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Komposisi Pengeluaran</div>
+                        <h4 class="mt-3 text-lg font-semibold text-slate-900">Kategori Kas Keluar Teratas</h4>
+                        <p class="mt-2 text-sm text-slate-500">Membantu melihat pos pengeluaran yang paling sering dipakai.</p>
+                    </div>
+                </div>
+
+                <div class="mt-5 space-y-3">
+                    {% for item in kategori_summary %}
+                        <div class="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <div class="text-sm font-semibold text-slate-900">{{ item.kategori }}</div>
+                            <div class="text-sm font-semibold text-red-700">Rp {{ item.total|intcomma }}</div>
+                        </div>
+                    {% empty %}
+                        <div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-slate-500">
+                            Belum ada data kategori pengeluaran.
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="grid gap-6 lg:grid-cols-2">
+                <div class="panel-card overflow-hidden rounded-3xl">
+                    <div class="px-5 py-4 border-b border-slate-200/80">
+                        <h4 class="text-lg font-semibold text-slate-900">Daftar Pembayaran Masuk</h4>
+                        <p class="text-sm text-slate-500">{{ jumlah_transaksi_masuk }} item pembayaran ditampilkan sesuai filter.</p>
+                    </div>
+                    <div class="divide-y divide-slate-200">
+                        {% for item in pembayaran_items %}
+                            <div class="px-5 py-4">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div>
+                                        <div class="text-sm font-semibold text-slate-900">{{ item.tagihan.siswa.nama }}</div>
+                                        <div class="text-xs text-slate-500">
+                                            {{ item.tagihan.jenis.nama }}
+                                            {% if item.tagihan.periode %}| {{ item.tagihan.periode }}{% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-sm font-semibold text-emerald-700">Rp {{ item.jumlah_bayar|intcomma }}</div>
+                                        <div class="text-xs text-slate-500">{{ item.tanggal_bayar|date:"d M Y H:i" }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% empty %}
+                            <div class="px-5 py-6 text-center text-slate-500">Belum ada pembayaran masuk pada filter ini.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="panel-card overflow-hidden rounded-3xl">
+                    <div class="px-5 py-4 border-b border-slate-200/80">
+                        <h4 class="text-lg font-semibold text-slate-900">Daftar Kas Keluar</h4>
+                        <p class="text-sm text-slate-500">Semua pengeluaran bendahara sesuai filter semester.</p>
+                    </div>
+                    <div class="divide-y divide-slate-200">
+                    {% for item in kas_keluar_items %}
+                            <div class="px-5 py-4">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div>
+                                        <div class="text-sm font-semibold text-slate-900">{{ item.judul }}</div>
+                                        <div class="text-xs text-slate-500">
+                                            {{ item.kategori }} | {{ item.kode_pengeluaran }}
+                                            {% if item.jenis_pembayaran %}
+                                                | Dialokasikan ke {{ item.jenis_pembayaran.nama }}
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-sm font-semibold text-red-700">Rp {{ item.jumlah|intcomma }}</div>
+                                        <div class="text-xs text-slate-500">{{ item.tanggal_pengeluaran|date:"d M Y" }}</div>
+                                    </div>
+                                </div>
+                                {% if item.keterangan %}
+                                    <div class="mt-2 text-xs text-slate-500">{{ item.keterangan }}</div>
+                                {% endif %}
+                            </div>
+                        {% empty %}
+                            <div class="px-5 py-6 text-center text-slate-500">Belum ada kas keluar.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    #id_judul,
+    #id_kategori,
+    #id_jumlah,
+    #id_jenis_pembayaran,
+    #id_tanggal_pengeluaran,
+    #id_semester,
+    #id_keterangan {
+        width: 100%;
+        border: 1px solid #cbd5e1;
+        border-radius: 1rem;
+        padding: 0.85rem 1rem;
+        outline: none;
+        background: white;
+    }
+
+    #id_keterangan {
+        min-height: 130px;
+    }
+
+    #id_judul:focus,
+    #id_kategori:focus,
+    #id_jumlah:focus,
+    #id_jenis_pembayaran:focus,
+    #id_tanggal_pengeluaran:focus,
+    #id_semester:focus,
+    #id_keterangan:focus {
+        border-color: #dc2626;
+        box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12);
+    }
+</style>
+{% endblock %}
