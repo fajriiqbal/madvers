@@ -12,14 +12,6 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils.timezone import localdate
 
-from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill
-from openpyxl.utils import get_column_letter
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
-
 from .models import Semester, Siswa, JenisPembayaran, Tagihan, Pembayaran, TransaksiPembayaran, KasKeluar
 from .forms import (
     SiswaForm, JenisPembayaranForm, PembayaranMultiForm,
@@ -374,6 +366,10 @@ def get_cash_position_summary(semester=None):
 
 
 def export_report_excel(*, title, filename, sheet_name, filter_rows, summary_rows, headers, data_rows):
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
     workbook = Workbook()
     worksheet = workbook.active
     worksheet.title = sheet_name[:31]
@@ -448,6 +444,11 @@ def export_report_excel(*, title, filename, sheet_name, filter_rows, summary_row
 
 
 def export_report_pdf(*, title, filename, filter_rows, summary_rows, headers, data_rows):
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
     output = BytesIO()
     page_size = landscape(A4) if len(headers) > 6 else A4
     document = SimpleDocTemplate(
@@ -1802,6 +1803,8 @@ def siswa_delete(request, pk):
 
 
 def download_template_siswa(request):
+    from openpyxl import Workbook
+
     wb = Workbook()
     ws = wb.active
     ws.title = "Template Siswa"
