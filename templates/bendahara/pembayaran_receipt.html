@@ -187,20 +187,35 @@
 
         <div class="small"><strong>Rincian Pembayaran</strong></div>
         <div class="item-list">
-            {% for item in payment_items %}
+            {% for group in payment_groups %}
                 <div class="item">
                     <div class="row">
-                        <span>{{ item.tagihan.jenis.nama }}</span>
-                        <span>Rp {{ item.jumlah_bayar|intcomma }}</span>
+                        <span>{{ group.jenis.nama }}</span>
+                        <span>Rp {{ group.total_bayar|intcomma }}</span>
                     </div>
-                    <div class="row">
-                        <span>Periode</span>
-                        <span>{{ item.tagihan.periode|default:"-" }}</span>
-                    </div>
-                    <div class="row">
-                        <span>Sisa Setelah Bayar</span>
-                        <span>Rp {{ item.tagihan.sisa_tagihan|intcomma }}</span>
-                    </div>
+                    {% if group.is_bulanan %}
+                        {% for row in group.rows %}
+                            <div class="row">
+                                <span>{{ row.periode_label }}</span>
+                                <span>Rp {{ row.payment.jumlah_bayar|intcomma }}</span>
+                            </div>
+                        {% endfor %}
+                        <div class="row">
+                            <span>Sisa Setelah Bayar</span>
+                            <span>Rp {{ group.total_sisa_setelah_bayar|intcomma }}</span>
+                        </div>
+                    {% else %}
+                        {% for row in group.rows %}
+                            <div class="row">
+                                <span>Periode</span>
+                                <span>{{ row.periode_label|default:"-" }}</span>
+                            </div>
+                            <div class="row">
+                                <span>Sisa Setelah Bayar</span>
+                                <span>Rp {{ row.sisa_setelah_bayar|intcomma }}</span>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
                 </div>
             {% endfor %}
         </div>

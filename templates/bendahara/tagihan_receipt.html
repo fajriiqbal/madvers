@@ -94,39 +94,51 @@
 
     <div class="divider"></div>
 
-    {% if tagihan_list %}
+    {% if tagihan_groups %}
 
-        {% for tagihan in tagihan_list %}
-            {% if tagihan.nominal > 0 %}
+        {% for group in tagihan_groups %}
+            {% if group.total_nominal > 0 %}
             <div class="item">
 
-                <div class="item-name">{{ tagihan.jenis.nama }}</div>
+                <div class="item-name">{{ group.jenis.nama }}</div>
 
                 <div class="row">
                     <span>Nominal</span>
-                    <span>Rp {{ tagihan.nominal|intcomma }}</span>
+                    <span>Rp {{ group.total_nominal|intcomma }}</span>
                 </div>
 
                 <div class="row">
                     <span>Terbayar</span>
-                    <span>Rp {{ tagihan.total_terbayar|intcomma }}</span>
+                    <span>Rp {{ group.total_terbayar|intcomma }}</span>
                 </div>
 
                 <div class="row">
                     <span>Sisa</span>
-                    <span>Rp {{ tagihan.sisa_tagihan|intcomma }}</span>
+                    <span>Rp {{ group.total_sisa|intcomma }}</span>
                 </div>
 
                 <div class="row">
                     <span>Status</span>
-                    <span>{{ tagihan.status_pembayaran }}</span>
+                    <span>{{ group.status_pembayaran }}</span>
                 </div>
 
                 <div class="item-meta">
-                    Periode: {{ tagihan.periode|default:"-" }}<br>
-                    Jatuh tempo: {{ tagihan.jatuh_tempo|date:"d-m-Y"|default:"-" }}
-                    {% if tagihan.catatan %}
-                        <br>Catatan: {{ tagihan.catatan }}
+                    {% if group.is_bulanan %}
+                        {% for row in group.rows %}
+                            {{ row.periode_label }}: Nominal Rp {{ row.tagihan.nominal|intcomma }}, sisa Rp {{ row.tagihan.sisa_tagihan|intcomma }}
+                            {% if row.tagihan.jatuh_tempo %}
+                                (jatuh tempo {{ row.tagihan.jatuh_tempo|date:"d-m-Y" }})
+                            {% endif %}
+                            <br>
+                        {% endfor %}
+                    {% else %}
+                        {% for row in group.rows %}
+                            Periode: {{ row.periode_label|default:"-" }}<br>
+                            Jatuh tempo: {{ row.tagihan.jatuh_tempo|date:"d-m-Y"|default:"-" }}
+                            {% if row.tagihan.catatan %}
+                                <br>Catatan: {{ row.tagihan.catatan }}
+                            {% endif %}
+                        {% endfor %}
                     {% endif %}
                 </div>
 

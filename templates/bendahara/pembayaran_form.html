@@ -119,7 +119,7 @@
         <div class="space-y-4">
             <div>
                 <h4 class="text-lg font-semibold text-slate-900">Daftar Tagihan yang Bisa Dibayar</h4>
-                <p class="text-sm text-slate-500">Setiap baris mewakili satu tagihan. Anda bisa membayar 1, 2, atau beberapa tagihan sekaligus.</p>
+                <p class="text-sm text-slate-500">Jenis pembayaran bulanan diringkas menjadi satu item, lalu bulan-bulannya tampil di dalam item tersebut.</p>
             </div>
 
             {% if pembayaran_groups %}
@@ -131,7 +131,7 @@
                                     <h5 class="text-lg font-semibold text-slate-900">{{ group.jenis.nama }}</h5>
                                     <p class="mt-1 text-sm text-slate-500">
                                         {% if group.is_bulanan %}
-                                            Pilih bulan yang ingin dibayar pada transaksi ini.
+                                            Satu item ini memuat {{ group.jumlah_rows }} bulan yang bisa dipilih untuk transaksi ini.
                                         {% else %}
                                             Tagihan satuan untuk semester {{ selected_semester.nama|default:"yang dipilih" }}.
                                         {% endif %}
@@ -154,85 +154,150 @@
                             </div>
 
                             <div class="p-5 space-y-4">
-                                {% for row in group.rows %}
-                                    <div class="rounded-2xl border border-slate-200 bg-white p-4">
-                                        <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
-                                            <div class="flex items-start gap-4">
-                                                <label class="mt-1 inline-flex">
-                                                    <input
-                                                        type="checkbox"
-                                                        name="pilih_tagihan_{{ row.tagihan.pk }}"
-                                                        value="1"
-                                                        {% if row.selected %}checked{% endif %}
-                                                        class="payment-checkbox h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                                                    >
-                                                </label>
-                                                <div>
-                                                    <h6 class="text-base font-semibold text-slate-900">
-                                                        {% if group.is_bulanan %}
-                                                            {{ row.tagihan.periode|default:"Periode Bulanan" }}
-                                                        {% else %}
-                                                            {{ row.tagihan.jenis.nama }}
-                                                        {% endif %}
-                                                    </h6>
-                                                    <p class="mt-1 text-sm text-slate-500">
-                                                        Semester: {{ row.tagihan.semester.nama }}
-                                                        {% if not group.is_bulanan and row.tagihan.periode %}
-                                                            | Periode: {{ row.tagihan.periode }}
-                                                        {% endif %}
-                                                        {% if row.tagihan.jatuh_tempo %}
-                                                            | Jatuh tempo: {{ row.tagihan.jatuh_tempo|date:"d M Y" }}
-                                                        {% endif %}
-                                                    </p>
+                                {% if group.is_bulanan %}
+                                    <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                                        <table class="min-w-full divide-y divide-slate-200">
+                                            <thead class="bg-slate-50">
+                                                <tr>
+                                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Pilih</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Bulan</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Nominal</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Terbayar</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Sisa</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Jumlah Bayar</th>
+                                                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">Aksi</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-200 bg-white">
+                                                {% for row in group.rows %}
+                                                    <tr class="align-top">
+                                                        <td class="px-4 py-4">
+                                                            <input
+                                                                type="checkbox"
+                                                                name="pilih_tagihan_{{ row.tagihan.pk }}"
+                                                                value="1"
+                                                                {% if row.selected %}checked{% endif %}
+                                                                class="payment-checkbox h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                                            >
+                                                        </td>
+                                                        <td class="px-4 py-4">
+                                                            <div class="text-sm font-semibold text-slate-900">{{ row.tagihan.periode|default:"Periode Bulanan" }}</div>
+                                                            <div class="mt-1 text-xs text-slate-500">
+                                                                {% if row.tagihan.jatuh_tempo %}
+                                                                    Jatuh tempo: {{ row.tagihan.jatuh_tempo|date:"d M Y" }}
+                                                                {% else %}
+                                                                    Semester: {{ row.tagihan.semester.nama }}
+                                                                {% endif %}
+                                                            </div>
+                                                        </td>
+                                                        <td class="px-4 py-4 text-sm font-medium text-slate-900">Rp {{ row.tagihan.nominal|intcomma }}</td>
+                                                        <td class="px-4 py-4 text-sm font-medium text-emerald-700">Rp {{ row.tagihan.total_terbayar|intcomma }}</td>
+                                                        <td class="px-4 py-4 text-sm font-medium text-red-700">Rp {{ row.tagihan.sisa_tagihan|intcomma }}</td>
+                                                        <td class="px-4 py-4">
+                                                            <input
+                                                                type="number"
+                                                                id="jumlah_tagihan_{{ row.tagihan.pk }}"
+                                                                name="jumlah_tagihan_{{ row.tagihan.pk }}"
+                                                                value="{{ row.jumlah_input }}"
+                                                                min="0"
+                                                                max="{{ row.tagihan.sisa_tagihan }}"
+                                                                step="1"
+                                                                class="payment-amount w-full min-w-[150px] rounded-2xl border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                                data-checkbox-name="pilih_tagihan_{{ row.tagihan.pk }}"
+                                                            >
+                                                            <p class="mt-1 text-[11px] text-slate-400">Maks Rp {{ row.tagihan.sisa_tagihan|intcomma }}</p>
+                                                        </td>
+                                                        <td class="px-4 py-4">
+                                                            <button
+                                                                type="button"
+                                                                class="fill-full inline-flex items-center justify-center px-3 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold"
+                                                                data-target="jumlah_tagihan_{{ row.tagihan.pk }}"
+                                                                data-value="{{ row.tagihan.sisa_tagihan }}"
+                                                                data-checkbox="pilih_tagihan_{{ row.tagihan.pk }}"
+                                                            >
+                                                                Penuh
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                {% else %}
+                                    {% for row in group.rows %}
+                                        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                                            <div class="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-4">
+                                                <div class="flex items-start gap-4">
+                                                    <label class="mt-1 inline-flex">
+                                                        <input
+                                                            type="checkbox"
+                                                            name="pilih_tagihan_{{ row.tagihan.pk }}"
+                                                            value="1"
+                                                            {% if row.selected %}checked{% endif %}
+                                                            class="payment-checkbox h-5 w-5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                                        >
+                                                    </label>
+                                                    <div>
+                                                        <h6 class="text-base font-semibold text-slate-900">{{ row.tagihan.jenis.nama }}</h6>
+                                                        <p class="mt-1 text-sm text-slate-500">
+                                                            Semester: {{ row.tagihan.semester.nama }}
+                                                            {% if row.tagihan.periode %}
+                                                                | Periode: {{ row.tagihan.periode }}
+                                                            {% endif %}
+                                                            {% if row.tagihan.jatuh_tempo %}
+                                                                | Jatuh tempo: {{ row.tagihan.jatuh_tempo|date:"d M Y" }}
+                                                            {% endif %}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    class="fill-full inline-flex items-center justify-center px-4 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold"
+                                                    data-target="jumlah_tagihan_{{ row.tagihan.pk }}"
+                                                    data-value="{{ row.tagihan.sisa_tagihan }}"
+                                                    data-checkbox="pilih_tagihan_{{ row.tagihan.pk }}"
+                                                >
+                                                    Isi Bayar Penuh
+                                                </button>
+                                            </div>
+
+                                            <div class="grid gap-3 mt-5 sm:grid-cols-3">
+                                                <div class="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3">
+                                                    <div class="text-xs uppercase tracking-wide text-slate-500">Nominal Tagihan</div>
+                                                    <div class="mt-1 text-sm font-semibold text-slate-900">Rp {{ row.tagihan.nominal|intcomma }}</div>
+                                                </div>
+                                                <div class="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3">
+                                                    <div class="text-xs uppercase tracking-wide text-emerald-600">Terbayar</div>
+                                                    <div class="mt-1 text-sm font-semibold text-emerald-700">Rp {{ row.tagihan.total_terbayar|intcomma }}</div>
+                                                </div>
+                                                <div class="rounded-2xl bg-red-50 border border-red-200 px-4 py-3">
+                                                    <div class="text-xs uppercase tracking-wide text-red-500">Sisa Tagihan</div>
+                                                    <div class="mt-1 text-sm font-semibold text-red-700">Rp {{ row.tagihan.sisa_tagihan|intcomma }}</div>
                                                 </div>
                                             </div>
-                                            <button
-                                                type="button"
-                                                class="fill-full inline-flex items-center justify-center px-4 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold"
-                                                data-target="jumlah_tagihan_{{ row.tagihan.pk }}"
-                                                data-value="{{ row.tagihan.sisa_tagihan }}"
-                                                data-checkbox="pilih_tagihan_{{ row.tagihan.pk }}"
-                                            >
-                                                Isi Bayar Penuh
-                                            </button>
-                                        </div>
 
-                                        <div class="grid gap-3 mt-5 sm:grid-cols-3">
-                                            <div class="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3">
-                                                <div class="text-xs uppercase tracking-wide text-slate-500">Nominal Tagihan</div>
-                                                <div class="mt-1 text-sm font-semibold text-slate-900">Rp {{ row.tagihan.nominal|intcomma }}</div>
-                                            </div>
-                                            <div class="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3">
-                                                <div class="text-xs uppercase tracking-wide text-emerald-600">Terbayar</div>
-                                                <div class="mt-1 text-sm font-semibold text-emerald-700">Rp {{ row.tagihan.total_terbayar|intcomma }}</div>
-                                            </div>
-                                            <div class="rounded-2xl bg-red-50 border border-red-200 px-4 py-3">
-                                                <div class="text-xs uppercase tracking-wide text-red-500">Sisa Tagihan</div>
-                                                <div class="mt-1 text-sm font-semibold text-red-700">Rp {{ row.tagihan.sisa_tagihan|intcomma }}</div>
+                                            <div class="mt-5">
+                                                <label for="jumlah_tagihan_{{ row.tagihan.pk }}" class="block text-sm font-medium text-slate-700 mb-2">
+                                                    Jumlah Bayar
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    id="jumlah_tagihan_{{ row.tagihan.pk }}"
+                                                    name="jumlah_tagihan_{{ row.tagihan.pk }}"
+                                                    value="{{ row.jumlah_input }}"
+                                                    min="0"
+                                                    max="{{ row.tagihan.sisa_tagihan }}"
+                                                    step="1"
+                                                    class="payment-amount w-full rounded-2xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                    data-checkbox-name="pilih_tagihan_{{ row.tagihan.pk }}"
+                                                >
+                                                <p class="mt-2 text-xs text-slate-500">
+                                                    Maksimal pembayaran untuk item ini adalah Rp {{ row.tagihan.sisa_tagihan|intcomma }}.
+                                                </p>
                                             </div>
                                         </div>
-
-                                        <div class="mt-5">
-                                            <label for="jumlah_tagihan_{{ row.tagihan.pk }}" class="block text-sm font-medium text-slate-700 mb-2">
-                                                Jumlah Bayar
-                                            </label>
-                                            <input
-                                                type="number"
-                                                id="jumlah_tagihan_{{ row.tagihan.pk }}"
-                                                name="jumlah_tagihan_{{ row.tagihan.pk }}"
-                                                value="{{ row.jumlah_input }}"
-                                                min="0"
-                                                max="{{ row.tagihan.sisa_tagihan }}"
-                                                step="1"
-                                                class="payment-amount w-full rounded-2xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                                data-checkbox-name="pilih_tagihan_{{ row.tagihan.pk }}"
-                                            >
-                                            <p class="mt-2 text-xs text-slate-500">
-                                                Maksimal pembayaran untuk item ini adalah Rp {{ row.tagihan.sisa_tagihan|intcomma }}.
-                                            </p>
-                                        </div>
-                                    </div>
-                                {% endfor %}
+                                    {% endfor %}
+                                {% endif %}
                             </div>
                         </div>
                     {% endfor %}

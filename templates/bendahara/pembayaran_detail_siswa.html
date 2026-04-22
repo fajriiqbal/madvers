@@ -68,30 +68,31 @@
     </div>
 
     <div class="space-y-4">
-        {% for row in tagihan_rows %}
+        {% for group in tagihan_groups %}
             <div class="panel-card overflow-hidden rounded-3xl">
                 <div class="px-6 py-5 border-b border-slate-200/80 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                     <div>
-                        <h4 class="text-lg font-semibold text-slate-900">{{ row.tagihan.jenis.nama }}</h4>
+                        <h4 class="text-lg font-semibold text-slate-900">{{ group.jenis.nama }}</h4>
                         <p class="text-sm text-slate-500">
-                            Periode: {{ row.tagihan.periode|default:"-" }}
-                            {% if row.tagihan.jatuh_tempo %}
-                                | Jatuh tempo: {{ row.tagihan.jatuh_tempo|date:"d M Y" }}
+                            {% if group.is_bulanan %}
+                                Mencakup {{ group.jumlah_rows }} bulan dalam satu item pembayaran.
+                            {% else %}
+                                Periode: {{ group.periode_summary|default:"-" }}
                             {% endif %}
                         </p>
                     </div>
                     <div class="grid sm:grid-cols-3 gap-3 text-sm">
                         <div class="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3">
                             <div class="text-slate-500">Nominal</div>
-                            <div class="font-semibold text-slate-900">Rp {{ row.tagihan.nominal|intcomma }}</div>
+                            <div class="font-semibold text-slate-900">Rp {{ group.total_nominal|intcomma }}</div>
                         </div>
                         <div class="rounded-2xl bg-emerald-50 border border-emerald-200 px-4 py-3">
                             <div class="text-emerald-600">Terbayar</div>
-                            <div class="font-semibold text-emerald-700">Rp {{ row.tagihan.total_terbayar|intcomma }}</div>
+                            <div class="font-semibold text-emerald-700">Rp {{ group.total_terbayar|intcomma }}</div>
                         </div>
                         <div class="rounded-2xl bg-red-50 border border-red-200 px-4 py-3">
                             <div class="text-red-500">Sisa</div>
-                            <div class="font-semibold text-red-700">Rp {{ row.tagihan.sisa_tagihan|intcomma }}</div>
+                            <div class="font-semibold text-red-700">Rp {{ group.total_sisa|intcomma }}</div>
                         </div>
                     </div>
                 </div>
@@ -100,16 +101,16 @@
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div>
                             <span class="text-sm font-medium text-slate-600">Status:</span>
-                            {% if row.tagihan.status_pembayaran == 'Lunas' %}
+                            {% if group.status_pembayaran == 'Lunas' %}
                                 <span class="inline-flex ml-2 px-3 py-1 rounded-full bg-green-100 text-green-700 font-medium">Lunas</span>
-                            {% elif row.tagihan.status_pembayaran == 'Cicilan' %}
+                            {% elif group.status_pembayaran == 'Cicilan' %}
                                 <span class="inline-flex ml-2 px-3 py-1 rounded-full bg-amber-100 text-amber-700 font-medium">Cicilan</span>
                             {% else %}
                                 <span class="inline-flex ml-2 px-3 py-1 rounded-full bg-red-100 text-red-700 font-medium">Belum Bayar</span>
                             {% endif %}
                         </div>
-                        {% if row.tagihan.sisa_tagihan > 0 %}
-                            <a href="{% url 'bendahara:pembayaran_create' %}?siswa={{ siswa.pk }}&tagihan={{ row.tagihan.pk }}&redirect_siswa={{ siswa.pk }}{% if semester %}&semester={{ semester.id }}{% endif %}" class="inline-flex items-center justify-center px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm">
+                        {% if group.total_sisa > 0 %}
+                            <a href="{% url 'bendahara:pembayaran_create' %}?siswa={{ siswa.pk }}&redirect_siswa={{ siswa.pk }}{% if semester %}&semester={{ semester.id }}{% endif %}" class="inline-flex items-center justify-center px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm">
                                 Bayar Tagihan Ini
                             </a>
                         {% endif %}
@@ -120,6 +121,10 @@
                     <table class="min-w-full divide-y divide-slate-200">
                         <thead class="bg-slate-50/80">
                             <tr>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Periode</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Nominal</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Terbayar</th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Sisa</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Tanggal</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Jumlah Bayar</th>
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Metode</th>
@@ -127,31 +132,43 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-200 bg-white">
-                            {% for pembayaran in row.pembayaran_items %}
-                                <tr class="hover:bg-emerald-50/40 transition-colors">
-                                    <td class="px-6 py-4 text-sm text-slate-700">{{ pembayaran.tanggal_bayar|date:"d M Y H:i" }}</td>
-                                    <td class="px-6 py-4 text-sm font-medium text-emerald-700">Rp {{ pembayaran.jumlah_bayar|intcomma }}</td>
-                                    <td class="px-6 py-4 text-sm text-slate-700">{{ pembayaran.metode|default:"-" }}</td>
-                                    <td class="px-6 py-4 text-sm text-slate-700">
-                                        <div>{{ pembayaran.keterangan|default:"-" }}</div>
-                                        <div class="mt-2">
-                                            {% if pembayaran.transaksi %}
-                                                <div class="text-xs text-slate-500 mb-2">{{ pembayaran.transaksi.kode_transaksi }}</div>
-                                                <a href="{% url 'bendahara:transaksi_pembayaran_download' pembayaran.transaksi.pk %}" class="inline-flex items-center px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm">
-                                                    Download Struk Gabungan
-                                                </a>
-                                            {% else %}
-                                                <a href="{% url 'bendahara:pembayaran_download' pembayaran.pk %}" class="inline-flex items-center px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm">
-                                                    Download Kwitansi
-                                                </a>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-                            {% empty %}
-                                <tr>
-                                    <td colspan="4" class="px-6 py-6 text-center text-slate-500">Belum ada pembayaran untuk tagihan ini.</td>
-                                </tr>
+                            {% for row in group.rows %}
+                                {% if row.pembayaran_items %}
+                                    {% for pembayaran in row.pembayaran_items %}
+                                        <tr class="hover:bg-emerald-50/40 transition-colors">
+                                            <td class="px-6 py-4 text-sm text-slate-700">{{ row.periode_label }}</td>
+                                            <td class="px-6 py-4 text-sm text-slate-700">Rp {{ row.tagihan.nominal|intcomma }}</td>
+                                            <td class="px-6 py-4 text-sm font-medium text-emerald-700">Rp {{ row.tagihan.total_terbayar|intcomma }}</td>
+                                            <td class="px-6 py-4 text-sm font-medium text-red-700">Rp {{ row.tagihan.sisa_tagihan|intcomma }}</td>
+                                            <td class="px-6 py-4 text-sm text-slate-700">{{ pembayaran.tanggal_bayar|date:"d M Y H:i" }}</td>
+                                            <td class="px-6 py-4 text-sm font-medium text-emerald-700">Rp {{ pembayaran.jumlah_bayar|intcomma }}</td>
+                                            <td class="px-6 py-4 text-sm text-slate-700">{{ pembayaran.metode|default:"-" }}</td>
+                                            <td class="px-6 py-4 text-sm text-slate-700">
+                                                <div>{{ pembayaran.keterangan|default:"-" }}</div>
+                                                <div class="mt-2">
+                                                    {% if pembayaran.transaksi %}
+                                                        <div class="text-xs text-slate-500 mb-2">{{ pembayaran.transaksi.kode_transaksi }}</div>
+                                                        <a href="{% url 'bendahara:transaksi_pembayaran_download' pembayaran.transaksi.pk %}" class="inline-flex items-center px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm">
+                                                            Download Struk Gabungan
+                                                        </a>
+                                                    {% else %}
+                                                        <a href="{% url 'bendahara:pembayaran_download' pembayaran.pk %}" class="inline-flex items-center px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm">
+                                                            Download Kwitansi
+                                                        </a>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr class="hover:bg-slate-50/40 transition-colors">
+                                        <td class="px-6 py-4 text-sm text-slate-700">{{ row.periode_label }}</td>
+                                        <td class="px-6 py-4 text-sm text-slate-700">Rp {{ row.tagihan.nominal|intcomma }}</td>
+                                        <td class="px-6 py-4 text-sm font-medium text-emerald-700">Rp {{ row.tagihan.total_terbayar|intcomma }}</td>
+                                        <td class="px-6 py-4 text-sm font-medium text-red-700">Rp {{ row.tagihan.sisa_tagihan|intcomma }}</td>
+                                        <td colspan="4" class="px-6 py-4 text-sm text-slate-500">Belum ada pembayaran untuk periode ini.</td>
+                                    </tr>
+                                {% endif %}
                             {% endfor %}
                         </tbody>
                     </table>

@@ -233,6 +233,115 @@ def build_pembayaran_groups(tagihan_list, data=None, preselected_tagihan_id=None
         group['total_terbayar'] += tagihan.total_terbayar
         group['total_sisa'] += tagihan.sisa_tagihan
 
+    for group in groups:
+        group['jumlah_rows'] = len(group['rows'])
+        group['periode_labels'] = [
+            row['tagihan'].periode or row['tagihan'].semester.nama
+            for row in group['rows']
+        ]
+
+    return groups
+
+
+def build_tagihan_display_groups(tagihan_list):
+    groups = []
+    grouped = {}
+
+    for tagihan in tagihan_list:
+        pembayaran_items = list(
+            tagihan.pembayaran_set.select_related('transaksi').all().order_by('-tanggal_bayar')
+        ) if hasattr(tagihan, '_prefetched_objects_cache') else []
+        is_monthly = tagihan.jenis.is_bulanan
+        key = (
+            tagihan.semester_id,
+            tagihan.jenis_id,
+        ) if is_monthly else (
+            tagihan.semester_id,
+            tagihan.jenis_id,
+            tagihan.pk,
+        )
+
+        group = grouped.get(key)
+        if group is None:
+            group = {
+                'jenis': tagihan.jenis,
+                'semester': tagihan.semester,
+                'is_bulanan': is_monthly,
+                'rows': [],
+                'total_nominal': 0,
+                'total_terbayar': 0,
+                'total_sisa': 0,
+            }
+            grouped[key] = group
+            groups.append(group)
+
+        group['rows'].append({
+            'tagihan': tagihan,
+            'pembayaran_items': pembayaran_items,
+            'periode_label': tagihan.periode or tagihan.semester.nama,
+        })
+        group['total_nominal'] += tagihan.nominal
+        group['total_terbayar'] += tagihan.total_terbayar
+        group['total_sisa'] += tagihan.sisa_tagihan
+
+    for group in groups:
+        group['jumlah_rows'] = len(group['rows'])
+        group['status_pembayaran'] = build_tagihan_status(
+            group['total_nominal'],
+            group['total_terbayar'],
+            bool(group['rows']),
+        )
+        group['periode_summary'] = ', '.join(
+            row['periode_label'] for row in group['rows']
+        )
+
+    return groups
+
+
+def build_payment_receipt_groups(payment_items):
+    groups = []
+    grouped = {}
+
+    for payment in payment_items:
+        tagihan = payment.tagihan
+        is_monthly = tagihan.jenis.is_bulanan
+        key = (
+            tagihan.semester_id,
+            tagihan.jenis_id,
+        ) if is_monthly else (
+            tagihan.semester_id,
+            tagihan.jenis_id,
+            tagihan.pk,
+        )
+
+        group = grouped.get(key)
+        if group is None:
+            group = {
+                'jenis': tagihan.jenis,
+                'semester': tagihan.semester,
+                'is_bulanan': is_monthly,
+                'rows': [],
+                'total_bayar': 0,
+                'total_sisa_setelah_bayar': 0,
+            }
+            grouped[key] = group
+            groups.append(group)
+
+        group['rows'].append({
+            'payment': payment,
+            'tagihan': tagihan,
+            'periode_label': tagihan.periode or tagihan.semester.nama,
+            'sisa_setelah_bayar': tagihan.sisa_tagihan,
+        })
+        group['total_bayar'] += payment.jumlah_bayar
+        group['total_sisa_setelah_bayar'] += tagihan.sisa_tagihan
+
+    for group in groups:
+        group['jumlah_rows'] = len(group['rows'])
+        group['periode_summary'] = ', '.join(
+            row['periode_label'] for row in group['rows']
+        )
+
     return groups
 
 
@@ -647,11 +756,13 @@ def render_pembayaran_receipt_response(*, transaksi=None, pembayaran=None):
     )
     total_sisa_setelah_bayar = sum(tagihan.sisa_tagihan for tagihan in seluruh_tagihan)
     status_pelunasan = 'Lunas' if total_sisa_setelah_bayar <= 0 else 'Kurang Bayar'
+    payment_groups = build_payment_receipt_groups(payment_items)
 
     html = render_to_string('bendahara/pembayaran_receipt.html', {
         'transaksi': transaksi,
         'pembayaran': pembayaran,
         'payment_items': payment_items,
+        'payment_groups': payment_groups,
         'siswa': siswa,
         'nomor_transaksi': nomor_transaksi,
         'tanggal_bayar': tanggal_bayar,
@@ -1562,10 +1673,12 @@ def tagihan_download(request, pk):
     total_nominal = sum(tagihan.nominal for tagihan in tagihan_list)
     total_terbayar = sum(tagihan.total_terbayar for tagihan in tagihan_list)
     total_sisa = sum(tagihan.sisa_tagihan for tagihan in tagihan_list)
+    tagihan_groups = build_tagihan_display_groups(tagihan_list)
 
     html = render_to_string('bendahara/tagihan_receipt.html', {
         'siswa': siswa,
         'tagihan_list': tagihan_list,
+        'tagihan_groups': tagihan_groups,
         'total_nominal': total_nominal,
         'total_terbayar': total_terbayar,
         'total_sisa': total_sisa,
@@ -1618,24 +1731,17 @@ def pembayaran_detail_siswa(request, pk):
         .order_by('semester__nama', 'jenis__nama', 'urutan_periode', 'pk')
     )
 
-    tagihan_rows = []
     total_nominal = 0
     total_terbayar = 0
 
     for tagihan in tagihan_list:
-        pembayaran_items = list(
-            tagihan.pembayaran_set.select_related('transaksi').all().order_by('-tanggal_bayar')
-        )
         total_nominal += tagihan.nominal
         total_terbayar += tagihan.total_terbayar
-        tagihan_rows.append({
-            'tagihan': tagihan,
-            'pembayaran_items': pembayaran_items,
-        })
+    tagihan_groups = build_tagihan_display_groups(tagihan_list)
 
     context = {
         'siswa': siswa,
-        'tagihan_rows': tagihan_rows,
+        'tagihan_groups': tagihan_groups,
         'total_nominal': total_nominal,
         'total_terbayar': total_terbayar,
         'total_sisa': max(total_nominal - total_terbayar, 0),
