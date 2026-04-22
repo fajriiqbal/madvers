@@ -199,11 +199,11 @@
                                 <span>{{ row.periode_label }}</span>
                                 <span>Rp {{ row.payment.jumlah_bayar|intcomma }}</span>
                             </div>
+                            <div class="row">
+                                <span>Sisa {{ row.periode_label }}</span>
+                                <span>Rp {{ row.sisa_setelah_bayar|intcomma }}</span>
+                            </div>
                         {% endfor %}
-                        <div class="row">
-                            <span>Sisa Setelah Bayar</span>
-                            <span>Rp {{ group.total_sisa_setelah_bayar|intcomma }}</span>
-                        </div>
                     {% else %}
                         {% for row in group.rows %}
                             <div class="row">
