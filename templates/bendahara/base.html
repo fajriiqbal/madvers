@@ -453,6 +453,13 @@
                         </span>
                     </a>
 
+                    <a href="{% url 'bendahara:laporan_kelas' %}" class="nav-link {% if 'laporan_kelas' in request.resolver_match.url_name %}nav-link-active{% endif %}">
+                        <span>
+                            <span class="nav-kicker">Laporan</span>
+                            <span class="nav-label">Per Kelas</span>
+                        </span>
+                    </a>
+
                     <a href="{% url 'bendahara:laporan_pondok' %}" class="nav-link {% if 'laporan_pondok' in request.resolver_match.url_name %}nav-link-active{% endif %}">
                         <span>
                             <span class="nav-kicker">Laporan</span>

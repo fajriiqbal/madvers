@@ -35,6 +35,7 @@ from .views import (
     buat_tagihan_semester,
     # Laporan
     laporan_bulanan,
+    laporan_kelas,
     laporan_pondok,
     laporan_jenis_pembayaran,
     laporan_semester,
@@ -87,6 +88,7 @@ urlpatterns = [
     
     # Laporan
     path('laporan/bulanan/', laporan_bulanan, name='laporan_bulanan'),
+    path('laporan/kelas/', laporan_kelas, name='laporan_kelas'),
     path('laporan/pondok/', laporan_pondok, name='laporan_pondok'),
     path('laporan/jenis-pembayaran/', laporan_jenis_pembayaran, name='laporan_jenis_pembayaran'),
     path('laporan/semester/', laporan_semester, name='laporan_semester'),

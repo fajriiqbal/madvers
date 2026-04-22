@@ -152,7 +152,7 @@
     <div class="panel-card overflow-hidden rounded-3xl">
         <div class="px-6 py-5 border-b border-slate-200/80">
             <h3 class="text-xl font-semibold text-slate-900">Detail Transaksi Bulanan</h3>
-            <p class="text-sm text-slate-500">Rincian pembayaran untuk audit dan pencocokan pembukuan.</p>
+            <p class="text-sm text-slate-500">Rincian pembayaran untuk audit dan pencocokan pembukuan. Item bulanan diringkas per jenis pembayaran.</p>
         </div>
 
         <div class="overflow-x-auto data-table">
@@ -171,20 +171,18 @@
                 </thead>
 
                 <tbody class="divide-y divide-slate-200 bg-white">
-                    {% for item in payment_items %}
+                    {% for item in payment_report_rows %}
                     <tr class="hover:bg-blue-50/30">
                         <td class="px-6 py-4 text-sm text-slate-700">{{ item.tanggal_bayar|date:"d M Y H:i" }}</td>
-                        <td class="px-6 py-4 text-sm font-medium text-slate-900">
-                            {% if item.transaksi %}{{ item.transaksi.kode_transaksi }}{% else %}PBY-{{ item.pk|stringformat:"05d" }}{% endif %}
-                        </td>
+                        <td class="px-6 py-4 text-sm font-medium text-slate-900">{{ item.kode_transaksi }}</td>
                         <td class="px-6 py-4">
-                            <div class="font-semibold text-slate-900">{{ item.tagihan.siswa.nama }}</div>
-                            <div class="text-xs text-slate-500">{{ item.tagihan.siswa.nis }}</div>
+                            <div class="font-semibold text-slate-900">{{ item.siswa.nama }}</div>
+                            <div class="text-xs text-slate-500">{{ item.siswa.nis }}</div>
                         </td>
-                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.tagihan.siswa.kelas }}</td>
-                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.tagihan.jenis.nama }}</td>
-                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.tagihan.periode|default:"-" }}</td>
-                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.metode|default:"-" }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.siswa.kelas }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.jenis.nama }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.periode_summary|default:"-" }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ item.metode }}</td>
                         <td class="px-6 py-4 text-sm font-semibold text-emerald-700">Rp {{ item.jumlah_bayar|intcomma }}</td>
                     </tr>
                     {% empty %}

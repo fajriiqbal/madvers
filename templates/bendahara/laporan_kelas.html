@@ -1,0 +1,190 @@
+{% extends 'bendahara/base.html' %}
+{% load humanize %}
+
+{% block title %}Laporan Per Kelas{% endblock %}
+{% block page_title %}Laporan Per Kelas{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+    <div class="grid gap-4 md:grid-cols-3">
+        <div class="panel-card rounded-3xl p-5">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Monitoring Kelas</div>
+            <div class="mt-3 text-lg font-semibold text-slate-900">Pantau status tagihan per rombel</div>
+            <p class="mt-2 text-sm text-slate-500">Pilih satu kelas untuk melihat semua siswa dan status pembayaran tiap jenis tagihan.</p>
+        </div>
+        <div class="panel-card rounded-3xl p-5">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Format Ringkas</div>
+            <div class="mt-3 text-lg font-semibold text-slate-900">Status cukup tampil jelas</div>
+            <p class="mt-2 text-sm text-slate-500">Kolom tagihan diringkas menjadi status Lunas, Sudah Bayar, Belum Bayar, atau Belum Ada.</p>
+        </div>
+        <div class="panel-card rounded-3xl p-5 bg-[linear-gradient(135deg,rgba(16,185,129,0.08),rgba(37,99,235,0.08))]">
+            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Export</div>
+            <div class="mt-3 text-lg font-semibold text-slate-900">Siap dibagikan ke wali kelas</div>
+            <p class="mt-2 text-sm text-slate-600">Tampilan dan export Excel dibuat lebih rapi agar mudah diprint atau dikirim.</p>
+        </div>
+    </div>
+
+    <div class="panel-card rounded-3xl p-5">
+        <form method="get" class="grid gap-4 md:grid-cols-4 md:items-end">
+            <div>
+                <label class="text-sm text-slate-600">Semester</label>
+                <select name="semester" data-searchable="true" data-search-placeholder="Cari semester" class="mt-1 w-full rounded-xl border-slate-300">
+                    {% for semester_item in semester_list %}
+                    <option value="{{ semester_item.id }}" {% if semester and semester.id == semester_item.id %}selected{% endif %}>
+                        {{ semester_item.nama }}{% if semester_item.aktif %} (Aktif){% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-slate-600">Kelas</label>
+                <select name="kelas" data-searchable="true" data-search-placeholder="Cari kelas" class="mt-1 w-full rounded-xl border-slate-300">
+                    {% for kelas in kelas_list %}
+                    <option value="{{ kelas }}" {% if selected_kelas == kelas %}selected{% endif %}>{{ kelas }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex gap-3 flex-wrap md:col-span-2">
+                <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
+                    Tampilkan
+                </button>
+                <button type="submit" name="export" value="pdf" data-skip-loading="true" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold shadow-sm">
+                    Export PDF
+                </button>
+                <button type="submit" name="export" value="xlsx" data-skip-loading="true" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-sm">
+                    Export Excel
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Kelas</div>
+            <div class="mt-2 text-xl font-bold text-slate-900">{{ selected_kelas|default:"Belum dipilih" }}</div>
+            <div class="mt-2 text-sm text-slate-500">{% if semester %}Semester {{ semester.nama }}{% else %}Tanpa semester{% endif %}</div>
+        </div>
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Jumlah Siswa</div>
+            <div class="mt-2 text-xl font-bold text-blue-700">{{ jumlah_siswa }}</div>
+            <div class="mt-2 text-sm text-slate-500">Siswa aktif yang masuk filter kelas ini.</div>
+        </div>
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Total Tagihan</div>
+            <div class="mt-2 text-xl font-bold text-slate-900">Rp {{ total_nominal|intcomma }}</div>
+            <div class="mt-2 text-sm text-slate-500">Akumulasi nilai tagihan seluruh siswa di kelas ini.</div>
+        </div>
+        <div class="panel-card rounded-2xl p-5">
+            <div class="text-xs uppercase tracking-wide text-slate-400">Total Sisa</div>
+            <div class="mt-2 text-xl font-bold text-red-700">Rp {{ total_sisa|intcomma }}</div>
+            <div class="mt-2 text-sm text-slate-500">Sisa pembayaran yang belum diselesaikan.</div>
+        </div>
+    </div>
+
+    <div class="panel-card overflow-hidden rounded-3xl">
+        <div class="px-6 py-5 border-b border-slate-200/80">
+            <h3 class="text-xl font-semibold text-slate-900">Matriks Status Tagihan Kelas</h3>
+            <p class="text-sm text-slate-500">Setiap kolom mewakili satu jenis pembayaran yang berlaku untuk kelas ini.</p>
+        </div>
+
+        <div class="overflow-x-auto data-table">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50/80">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">NIS</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Nama Siswa</th>
+                        {% for jenis in jenis_list %}
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">{{ jenis.nama }}</th>
+                        {% endfor %}
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Sisa</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 bg-white">
+                    {% for row in siswa_status_rows %}
+                    <tr class="hover:bg-blue-50/30">
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ row.siswa.nis }}</td>
+                        <td class="px-6 py-4">
+                            <div class="font-semibold text-slate-900">{{ row.siswa.nama }}</div>
+                            <div class="text-xs text-slate-500">{{ row.jumlah_tagihan }} item tagihan</div>
+                        </td>
+                        {% for status in row.status_columns %}
+                        <td class="px-6 py-4">
+                            {% if status.status == 'Lunas' %}
+                                <span class="inline-flex px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">Lunas</span>
+                            {% elif status.status == 'Sudah Bayar' %}
+                                <span class="inline-flex px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold">Sudah Bayar</span>
+                            {% elif status.status == 'Belum Bayar' %}
+                                <span class="inline-flex px-3 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold">Belum Bayar</span>
+                            {% else %}
+                                <span class="inline-flex px-3 py-1 rounded-full bg-slate-200 text-slate-700 text-xs font-semibold">Belum Ada</span>
+                            {% endif %}
+                            <div class="mt-2 text-[11px] text-slate-500">{{ status.detail_status }}</div>
+                        </td>
+                        {% endfor %}
+                        <td class="px-6 py-4 text-sm font-semibold {% if row.total_sisa > 0 %}text-red-700{% else %}text-green-700{% endif %}">
+                            Rp {{ row.total_sisa|intcomma }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{{ jenis_list|length|add:3 }}" class="px-6 py-8 text-center text-slate-500">Belum ada data siswa untuk kelas ini.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="panel-card overflow-hidden rounded-3xl">
+        <div class="px-6 py-5 border-b border-slate-200/80">
+            <h3 class="text-xl font-semibold text-slate-900">Rincian Status Per Siswa</h3>
+            <p class="text-sm text-slate-500">Bagian ini lebih cocok untuk dibaca saat rekap kelas dan export Excel.</p>
+        </div>
+
+        <div class="overflow-x-auto data-table">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-50/80">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">NIS</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Nama</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Rincian Tagihan</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Tagihan</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Terbayar</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Sisa</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 bg-white">
+                    {% for row in siswa_status_rows %}
+                    <tr class="hover:bg-emerald-50/30">
+                        <td class="px-6 py-4 text-sm text-slate-700">{{ row.siswa.nis }}</td>
+                        <td class="px-6 py-4">
+                            <div class="font-semibold text-slate-900">{{ row.siswa.nama }}</div>
+                            <div class="text-xs text-slate-500">{{ row.siswa.kelas }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-slate-600">{{ row.rincian_status }}</td>
+                        <td class="px-6 py-4 text-sm text-slate-700">Rp {{ row.total_nominal|intcomma }}</td>
+                        <td class="px-6 py-4 text-sm text-emerald-700">Rp {{ row.total_terbayar|intcomma }}</td>
+                        <td class="px-6 py-4 text-sm font-semibold {% if row.total_sisa > 0 %}text-red-700{% else %}text-green-700{% endif %}">Rp {{ row.total_sisa|intcomma }}</td>
+                        <td class="px-6 py-4">
+                            <div class="flex gap-2 flex-wrap">
+                                <a href="{% url 'bendahara:pembayaran_detail_siswa' row.siswa.pk %}{% if semester %}?semester={{ semester.id }}{% endif %}" class="px-3 py-2 rounded-xl bg-blue-500 text-white text-sm font-semibold">
+                                    Detail
+                                </a>
+                                <a href="{% url 'bendahara:pembayaran_create' %}?siswa={{ row.siswa.pk }}{% if semester %}&semester={{ semester.id }}{% endif %}" class="px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold">
+                                    Bayar
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-8 text-center text-slate-500">Belum ada data rincian untuk kelas ini.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

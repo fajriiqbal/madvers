@@ -1,4 +1,5 @@
 import calendar
+import re
 from datetime import date, timedelta
 from io import BytesIO
 
@@ -377,6 +378,169 @@ def build_payment_receipt_groups(payment_items, seluruh_tagihan=None):
     return groups
 
 
+def extract_tingkat_from_kelas_label(kelas_label):
+    normalized = re.sub(r'\s+', '', (kelas_label or '').strip().upper())
+    if not normalized:
+        return ''
+
+    roman_map = (
+        ('VIII', '8'),
+        ('VII', '7'),
+        ('IX', '9'),
+    )
+    for prefix, grade in roman_map:
+        if normalized.startswith(prefix):
+            return grade
+
+    match = re.match(r'(\d+)', normalized)
+    return match.group(1) if match else ''
+
+
+def get_applicable_jenis_queryset_for_kelas(kelas_label):
+    grade = extract_tingkat_from_kelas_label(kelas_label)
+    queryset = JenisPembayaran.objects.filter(aktif=True)
+    if grade:
+        queryset = queryset.filter(Q(target_kelas='') | Q(target_kelas=grade))
+    else:
+        queryset = queryset.filter(target_kelas='')
+    return queryset.order_by('nama')
+
+
+def build_tagihan_group_summaries(tagihan_items):
+    groups = []
+    grouped = {}
+
+    for tagihan in tagihan_items:
+        group = grouped.get(tagihan.jenis_id)
+        if group is None:
+            group = {
+                'jenis': tagihan.jenis,
+                'rows': [],
+                'total_nominal': 0,
+                'total_terbayar': 0,
+                'total_sisa': 0,
+                'periode_labels': [],
+                'jumlah_lunas': 0,
+            }
+            grouped[tagihan.jenis_id] = group
+            groups.append(group)
+
+        group['rows'].append(tagihan)
+        group['total_nominal'] += tagihan.nominal
+        group['total_terbayar'] += tagihan.total_terbayar
+        group['total_sisa'] += tagihan.sisa_tagihan
+        group['periode_labels'].append(tagihan.periode or tagihan.semester.nama)
+        if tagihan.sisa_tagihan <= 0:
+            group['jumlah_lunas'] += 1
+
+    for group in groups:
+        group['jumlah_item'] = len(group['rows'])
+        group['periode_summary'] = ', '.join(group['periode_labels'])
+        if group['total_sisa'] <= 0:
+            group['status'] = 'Lunas'
+            group['status_tone'] = 'green'
+        elif group['total_terbayar'] > 0:
+            group['status'] = 'Sudah Bayar'
+            group['status_tone'] = 'amber'
+        else:
+            group['status'] = 'Belum Bayar'
+            group['status_tone'] = 'red'
+
+        if group['jenis'].is_bulanan:
+            group['detail_status'] = (
+                f"{group['jumlah_lunas']}/{group['jumlah_item']} bulan lunas"
+            )
+        else:
+            group['detail_status'] = (
+                'Sudah lunas'
+                if group['status'] == 'Lunas'
+                else 'Sudah ada pembayaran' if group['status'] == 'Sudah Bayar'
+                else 'Belum ada pembayaran'
+            )
+
+    return groups
+
+
+def format_tagihan_group_details(tagihan_items):
+    groups = build_tagihan_group_summaries(tagihan_items)
+    details = []
+    for group in groups:
+        if group['jenis'].is_bulanan:
+            details.append(
+                f"{group['jenis'].nama} [{group['periode_summary']}]: {group['status']} "
+                f"(sisa {format_rupiah(group['total_sisa'])})"
+            )
+        else:
+            periode_label = group['periode_summary'] or '-'
+            details.append(
+                f"{group['jenis'].nama} ({periode_label}): {group['status']} "
+                f"(sisa {format_rupiah(group['total_sisa'])})"
+            )
+    return '; '.join(details)
+
+
+def format_outstanding_group_details(tagihan_items):
+    groups = build_tagihan_group_summaries(tagihan_items)
+    details = []
+    for group in groups:
+        if group['total_sisa'] <= 0:
+            continue
+        if group['jenis'].is_bulanan:
+            details.append(
+                f"{group['jenis'].nama} [{group['periode_summary']}]: {format_rupiah(group['total_sisa'])}"
+            )
+        else:
+            periode_label = group['periode_summary'] or '-'
+            details.append(
+                f"{group['jenis'].nama} ({periode_label}): {format_rupiah(group['total_sisa'])}"
+            )
+    return '; '.join(details)
+
+
+def build_payment_report_rows(payment_items):
+    rows = []
+    grouped = {}
+
+    for item in payment_items:
+        transaction_key = (
+            f"trx-{item.transaksi_id}"
+            if item.transaksi_id and item.transaksi
+            else f"single-{item.pk}"
+        )
+        key = (
+            transaction_key,
+            item.tagihan.siswa_id,
+            item.tagihan.jenis_id,
+        ) if item.tagihan.jenis.is_bulanan else (
+            transaction_key,
+            item.pk,
+        )
+
+        row = grouped.get(key)
+        if row is None:
+            row = {
+                'tanggal_bayar': item.tanggal_bayar,
+                'kode_transaksi': item.transaksi.kode_transaksi if item.transaksi_id and item.transaksi else f"PBY-{item.pk:05d}",
+                'siswa': item.tagihan.siswa,
+                'jenis': item.tagihan.jenis,
+                'metode': item.metode or '-',
+                'jumlah_bayar': 0,
+                'periode_labels': [],
+                'item_count': 0,
+            }
+            grouped[key] = row
+            rows.append(row)
+
+        row['jumlah_bayar'] += item.jumlah_bayar
+        row['periode_labels'].append(item.tagihan.periode or item.tagihan.semester.nama)
+        row['item_count'] += 1
+
+    for row in rows:
+        row['periode_summary'] = ', '.join(row['periode_labels'])
+
+    return rows
+
+
 def format_rupiah(value):
     return f"Rp {int(value or 0):,}"
 
@@ -576,7 +740,7 @@ def get_cash_position_summary(semester=None):
 
 def export_report_excel(*, title, filename, sheet_name, filter_rows, summary_rows, headers, data_rows):
     from openpyxl import Workbook
-    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
 
     workbook = Workbook()
@@ -621,16 +785,33 @@ def export_report_excel(*, title, filename, sheet_name, filter_rows, summary_row
 
     header_fill = PatternFill(fill_type='solid', fgColor='1D4ED8')
     header_font = Font(color='FFFFFF', bold=True)
+    thin_border = Border(
+        left=Side(style='thin', color='D1D5DB'),
+        right=Side(style='thin', color='D1D5DB'),
+        top=Side(style='thin', color='D1D5DB'),
+        bottom=Side(style='thin', color='D1D5DB'),
+    )
     for column_index, header in enumerate(headers, start=1):
         cell = worksheet.cell(row=current_row, column=column_index, value=header)
         cell.fill = header_fill
         cell.font = header_font
-        cell.alignment = Alignment(horizontal='center')
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        cell.border = thin_border
 
     data_start_row = current_row + 1
     for row_index, row in enumerate(data_rows, start=data_start_row):
         for column_index, value in enumerate(row, start=1):
-            worksheet.cell(row=row_index, column=column_index, value=value)
+            cell = worksheet.cell(row=row_index, column=column_index, value=value)
+            cell.alignment = Alignment(vertical='top', wrap_text=True)
+            cell.border = thin_border
+        if row_index % 2 == 0:
+            for column_index in range(1, len(headers) + 1):
+                worksheet.cell(row=row_index, column=column_index).fill = PatternFill(
+                    fill_type='solid',
+                    fgColor='F8FAFC',
+                )
+
+    worksheet.freeze_panes = f"A{data_start_row}"
 
     for column_index in range(1, len(headers) + 1):
         column_letter = get_column_letter(column_index)
@@ -2284,27 +2465,25 @@ def build_laporan_bulanan_context(request):
         payment_queryset = payment_queryset.filter(tagihan__siswa__kelas=kelas_filter)
 
     payment_items = list(payment_queryset)
+    payment_report_rows = build_payment_report_rows(payment_items)
 
     transaction_keys = set()
     siswa_ids = set()
     summary_per_jenis = {}
 
-    for item in payment_items:
-        if item.transaksi_id and item.transaksi:
-            transaction_keys.add(f"trx-{item.transaksi_id}")
-        else:
-            transaction_keys.add(f"single-{item.pk}")
-        siswa_ids.add(item.tagihan.siswa_id)
+    for item in payment_report_rows:
+        transaction_keys.add(item['kode_transaksi'])
+        siswa_ids.add(item['siswa'].id)
 
-        jenis_summary = summary_per_jenis.setdefault(item.tagihan.jenis_id, {
-            'jenis': item.tagihan.jenis,
+        jenis_summary = summary_per_jenis.setdefault(item['jenis'].id, {
+            'jenis': item['jenis'],
             'jumlah_item': 0,
             'jumlah_siswa_ids': set(),
             'total_bayar': 0,
         })
         jenis_summary['jumlah_item'] += 1
-        jenis_summary['jumlah_siswa_ids'].add(item.tagihan.siswa_id)
-        jenis_summary['total_bayar'] += item.jumlah_bayar
+        jenis_summary['jumlah_siswa_ids'].add(item['siswa'].id)
+        jenis_summary['total_bayar'] += item['jumlah_bayar']
 
     jenis_summary_rows = []
     for item in summary_per_jenis.values():
@@ -2343,9 +2522,10 @@ def build_laporan_bulanan_context(request):
         'kelas_filter': kelas_filter,
         'kelas_list': kelas_list,
         'payment_items': payment_items,
+        'payment_report_rows': payment_report_rows,
         'jenis_summary_rows': jenis_summary_rows,
         'total_pembayaran': sum(item.jumlah_bayar for item in payment_items),
-        'jumlah_item_pembayaran': len(payment_items),
+        'jumlah_item_pembayaran': len(payment_report_rows),
         'jumlah_transaksi': len(transaction_keys),
         'jumlah_siswa_bayar': len(siswa_ids),
         'bulan_label': MONTH_NAMES_ID[selected_month - 1],
@@ -2378,17 +2558,17 @@ def laporan_bulanan(request):
         headers=['Tanggal', 'Kode Transaksi', 'NIS', 'Nama Siswa', 'Kelas', 'Jenis', 'Periode', 'Metode', 'Jumlah'],
         data_rows=[
             [
-                item.tanggal_bayar.strftime('%d-%m-%Y %H:%M'),
-                item.transaksi.kode_transaksi if item.transaksi_id and item.transaksi else f"PBY-{item.pk:05d}",
-                item.tagihan.siswa.nis,
-                item.tagihan.siswa.nama,
-                item.tagihan.siswa.kelas,
-                item.tagihan.jenis.nama,
-                item.tagihan.periode or '-',
-                item.metode or '-',
-                format_rupiah(item.jumlah_bayar),
+                item['tanggal_bayar'].strftime('%d-%m-%Y %H:%M'),
+                item['kode_transaksi'],
+                item['siswa'].nis,
+                item['siswa'].nama,
+                item['siswa'].kelas,
+                item['jenis'].nama,
+                item['periode_summary'] or '-',
+                item['metode'],
+                format_rupiah(item['jumlah_bayar']),
             ]
-            for item in context['payment_items']
+            for item in context['payment_report_rows']
         ],
     )
     if export_response:
@@ -2473,10 +2653,7 @@ def build_laporan_pondok_context(request):
             'siswa': siswa,
             'outstanding_items': outstanding_items,
             'jumlah_item_kurang': len(outstanding_items),
-            'detail_kekurangan': '; '.join(
-                f"{item.jenis.nama}{' - ' + item.periode if item.periode else ''}: {format_rupiah(item.sisa_tagihan)}"
-                for item in outstanding_items
-            ),
+            'detail_kekurangan': format_outstanding_group_details(outstanding_items),
             'total_sisa': siswa_total_sisa,
         })
 
@@ -2779,6 +2956,150 @@ def laporan_siswa(request):
     return render(request, 'bendahara/laporan_siswa.html', context)
 
 
+def build_laporan_kelas_context(request):
+    semester = get_current_semester(request)
+    kelas_list = list(
+        Siswa.objects.filter(aktif=True)
+        .exclude(kelas__isnull=True)
+        .exclude(kelas__exact='')
+        .order_by('kelas')
+        .values_list('kelas', flat=True)
+        .distinct()
+    )
+
+    selected_kelas = (request.GET.get('kelas') or '').strip()
+    if not selected_kelas and kelas_list:
+        selected_kelas = kelas_list[0]
+
+    jenis_list = list(get_applicable_jenis_queryset_for_kelas(selected_kelas))
+    siswa_queryset = Siswa.objects.filter(aktif=True).order_by('nama')
+    if selected_kelas:
+        siswa_queryset = siswa_queryset.filter(kelas=selected_kelas)
+
+    siswa_list = list(siswa_queryset)
+    siswa_ids = [siswa.id for siswa in siswa_list]
+
+    tagihan_queryset = Tagihan.objects.none()
+    if semester and siswa_ids:
+        tagihan_queryset = (
+            Tagihan.objects.filter(siswa_id__in=siswa_ids, semester=semester)
+            .select_related('siswa', 'jenis', 'semester')
+            .prefetch_related('pembayaran_set')
+            .order_by('siswa__nama', 'jenis__nama', 'urutan_periode', 'pk')
+        )
+
+    tagihan_by_siswa = {}
+    for tagihan in tagihan_queryset:
+        tagihan_by_siswa.setdefault(tagihan.siswa_id, []).append(tagihan)
+
+    siswa_status_rows = []
+    total_nominal = 0
+    total_terbayar = 0
+    total_sisa = 0
+
+    for siswa in siswa_list:
+        tagihan_items = tagihan_by_siswa.get(siswa.id, [])
+        summary_groups = build_tagihan_group_summaries(tagihan_items)
+        summary_by_jenis_id = {group['jenis'].id: group for group in summary_groups}
+        status_columns = []
+
+        for jenis in jenis_list:
+            group = summary_by_jenis_id.get(jenis.id)
+            if group is None:
+                status_columns.append({
+                    'jenis': jenis,
+                    'status': 'Belum Ada',
+                    'status_tone': 'slate',
+                    'detail_status': 'Tagihan belum dibuat',
+                    'total_sisa': 0,
+                })
+                continue
+
+            status_columns.append({
+                'jenis': jenis,
+                'status': group['status'],
+                'status_tone': group['status_tone'],
+                'detail_status': group['detail_status'],
+                'total_sisa': group['total_sisa'],
+            })
+
+        siswa_total_nominal = sum(item.nominal for item in tagihan_items)
+        siswa_total_terbayar = sum(item.total_terbayar for item in tagihan_items)
+        siswa_total_sisa = sum(item.sisa_tagihan for item in tagihan_items)
+        total_nominal += siswa_total_nominal
+        total_terbayar += siswa_total_terbayar
+        total_sisa += siswa_total_sisa
+
+        siswa_status_rows.append({
+            'siswa': siswa,
+            'tagihan_items': tagihan_items,
+            'status_columns': status_columns,
+            'rincian_status': format_tagihan_group_details(tagihan_items) if tagihan_items else 'Belum ada tagihan',
+            'jumlah_tagihan': len(tagihan_items),
+            'total_nominal': siswa_total_nominal,
+            'total_terbayar': siswa_total_terbayar,
+            'total_sisa': siswa_total_sisa,
+        })
+
+    return {
+        'semester': semester,
+        'semester_list': Semester.objects.all(),
+        'kelas_list': kelas_list,
+        'selected_kelas': selected_kelas,
+        'jenis_list': jenis_list,
+        'siswa_status_rows': siswa_status_rows,
+        'jumlah_siswa': len(siswa_status_rows),
+        'total_nominal': total_nominal,
+        'total_terbayar': total_terbayar,
+        'total_sisa': total_sisa,
+    }
+
+
+def laporan_kelas(request):
+    context = build_laporan_kelas_context(request)
+    dynamic_headers = ['NIS', 'Nama Siswa'] + [jenis.nama for jenis in context['jenis_list']] + [
+        'Jumlah Tagihan',
+        'Total Tagihan',
+        'Terbayar',
+        'Sisa',
+        'Rincian',
+    ]
+    export_response = export_report_response(
+        request=request,
+        title='Laporan Per Kelas',
+        filename_prefix='laporan_kelas',
+        sheet_name='Laporan Kelas',
+        filter_rows=[
+            ('Semester', context['semester'].nama if context['semester'] else 'Belum dipilih'),
+            ('Kelas', context['selected_kelas'] or 'Belum dipilih'),
+        ],
+        summary_rows=[
+            ('Jumlah Siswa', context['jumlah_siswa']),
+            ('Total Tagihan', format_rupiah(context['total_nominal'])),
+            ('Total Terbayar', format_rupiah(context['total_terbayar'])),
+            ('Total Sisa', format_rupiah(context['total_sisa'])),
+        ],
+        headers=dynamic_headers,
+        data_rows=[
+            [
+                row['siswa'].nis,
+                row['siswa'].nama,
+                *[column['status'] for column in row['status_columns']],
+                row['jumlah_tagihan'],
+                format_rupiah(row['total_nominal']),
+                format_rupiah(row['total_terbayar']),
+                format_rupiah(row['total_sisa']),
+                row['rincian_status'],
+            ]
+            for row in context['siswa_status_rows']
+        ],
+    )
+    if export_response:
+        return export_response
+
+    return render(request, 'bendahara/laporan_kelas.html', context)
+
+
 def build_laporan_tunggakan_context(request):
     semester = get_current_semester(request)
 
@@ -2842,10 +3163,7 @@ def laporan_tunggakan(request):
                 item['siswa'].kelas,
                 len(item['tagihan_items']),
                 format_rupiah(item['total_sisa']),
-                '; '.join(
-                    f"{detail['tagihan'].jenis.nama} ({detail['tagihan'].periode or '-'}): {format_rupiah(detail['sisa'])}"
-                    for detail in item['tagihan_items']
-                ),
+                format_outstanding_group_details([detail['tagihan'] for detail in item['tagihan_items']]),
             ]
             for item in context['tunggakan_list']
         ],
