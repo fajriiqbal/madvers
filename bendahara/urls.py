@@ -9,6 +9,7 @@ from .views import (
     jenis_pembayaran_toggle,
     jenis_pembayaran_update,
     kas_sekolah,
+    kas_keluar_update,
     login_bendahara,
     logout_bendahara,
     pembayaran_create,
@@ -50,6 +51,7 @@ urlpatterns = [
     path('logout/', logout_bendahara, name='logout'),
     path('dashboard/', dashboard, name='dashboard'),
     path('kas-sekolah/', kas_sekolah, name='kas_sekolah'),
+    path('kas-sekolah/<int:pk>/edit/', kas_keluar_update, name='kas_keluar_update'),
     
     # Semester
     path('semester/', semester_list, name='semester_list'),

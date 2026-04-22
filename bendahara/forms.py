@@ -11,6 +11,16 @@ from .models import (
 )
 
 
+def positive_integer_attrs(*, placeholder):
+    return {
+        'min': '1',
+        'step': '1',
+        'inputmode': 'numeric',
+        'placeholder': placeholder,
+        'autocomplete': 'off',
+    }
+
+
 class LoginForm(forms.Form):
     username = forms.CharField(label='Username', max_length=150)
     password = forms.CharField(label='Password', widget=forms.PasswordInput)
@@ -38,6 +48,19 @@ class JenisPembayaranForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['nama'].widget.attrs.update({
+            'placeholder': 'Contoh: SPP, Jemputan, Wisuda',
+        })
+        self.fields['nominal_default'].widget.attrs.update(
+            positive_integer_attrs(placeholder='Masukkan nominal default')
+        )
+        self.fields['jumlah_bulan_per_semester'].widget.attrs.update({
+            'min': '1',
+            'step': '1',
+            'inputmode': 'numeric',
+            'placeholder': 'Contoh: 6',
+            'autocomplete': 'off',
+        })
         self.fields['target_kelas'].label = 'Berlaku untuk kelas'
         self.fields['target_kelas'].help_text = (
             'Pilih "Semua Kelas" jika tagihan ini berlaku umum, atau batasi untuk kelas tertentu seperti kelas 9.'
@@ -51,6 +74,12 @@ class JenisPembayaranForm(forms.ModelForm):
         self.fields['jumlah_bulan_per_semester'].help_text = (
             'Dipakai saat jenis pembayaran dibuat bulanan, misalnya SPP 6 bulan.'
         )
+
+    def clean_nominal_default(self):
+        nominal = self.cleaned_data.get('nominal_default')
+        if nominal is None or nominal <= 0:
+            raise forms.ValidationError('Nominal default harus lebih dari 0.')
+        return nominal
 
     def clean_jumlah_bulan_per_semester(self):
         jumlah = self.cleaned_data.get('jumlah_bulan_per_semester') or 0
@@ -87,6 +116,21 @@ class TagihanForm(forms.ModelForm):
             'jatuh_tempo': forms.DateInput(attrs={'type': 'date'}),
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['nominal'].widget.attrs.update(
+            positive_integer_attrs(placeholder='Masukkan nominal tagihan')
+        )
+        self.fields['periode'].widget.attrs.update({
+            'placeholder': 'Contoh: Juli 2026',
+        })
+
+    def clean_nominal(self):
+        nominal = self.cleaned_data.get('nominal')
+        if nominal is None or nominal <= 0:
+            raise forms.ValidationError('Nominal tagihan harus lebih dari 0.')
+        return nominal
+
 
 class PembayaranForm(forms.ModelForm):
     class Meta:
@@ -98,6 +142,9 @@ class PembayaranForm(forms.ModelForm):
         tagihan_id = kwargs.pop('tagihan_id', None)
         semester_id = kwargs.pop('semester_id', None)
         super().__init__(*args, **kwargs)
+        self.fields['jumlah_bayar'].widget.attrs.update(
+            positive_integer_attrs(placeholder='Masukkan jumlah bayar')
+        )
         if not semester_id:
             active_semester = Semester.objects.filter(aktif=True).first()
             semester_id = active_semester.pk if active_semester else None
@@ -210,7 +257,10 @@ class BulkTagihanForm(forms.Form):
     )
     nominal = forms.IntegerField(
         label='Nominal per Siswa',
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'min': '0'})
+        widget=forms.NumberInput(attrs={
+            'class': 'form-control',
+            **positive_integer_attrs(placeholder='Masukkan nominal per siswa'),
+        })
     )
     jatuh_tempo = forms.DateField(
         label='Jatuh Tempo',
@@ -246,8 +296,14 @@ class KasKeluarForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         active_semester = Semester.objects.filter(aktif=True).first()
         self.available_jenis_queryset = JenisPembayaran.objects.filter(aktif=True).order_by('nama')
+        self.fields['judul'].widget.attrs.update({
+            'placeholder': 'Contoh: Belanja ATK semester genap',
+        })
         self.fields['kategori'].widget.attrs.update({
             'placeholder': 'Contoh: Honor, Transport, Konsumsi, ATK',
+        })
+        self.fields['jumlah'].widget.attrs.update({
+            **positive_integer_attrs(placeholder='Masukkan nominal tanpa titik atau koma'),
         })
         self.fields['semester'].queryset = Semester.objects.all().order_by('-tanggal_mulai')
         self.fields['semester'].required = False

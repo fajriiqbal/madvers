@@ -190,15 +190,23 @@
             <div class="flex items-start justify-between gap-4">
                 <div>
                     <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Kas Keluar</div>
-                    <h4 class="mt-3 text-lg font-semibold text-slate-900">Catat Pengeluaran Bendahara</h4>
-                    <p class="mt-2 text-sm text-slate-500">Masukkan kebutuhan sekolah seperti ATK, transport, konsumsi, atau operasional lainnya. Satu pengeluaran bisa dibagi ke beberapa sumber dana agar data tidak dobel.</p>
+                    <h4 class="mt-3 text-lg font-semibold text-slate-900">
+                        {% if editing_item %}Edit Pengeluaran Bendahara{% else %}Catat Pengeluaran Bendahara{% endif %}
+                    </h4>
+                    <p class="mt-2 text-sm text-slate-500">
+                        {% if editing_item %}
+                            Perbarui nominal, tanggal, kategori, atau alokasi dana untuk pengeluaran {{ editing_item.kode_pengeluaran }}.
+                        {% else %}
+                            Masukkan kebutuhan sekolah seperti ATK, transport, konsumsi, atau operasional lainnya. Satu pengeluaran bisa dibagi ke beberapa sumber dana agar data tidak dobel.
+                        {% endif %}
+                    </p>
                 </div>
                 <div class="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-600">
-                    {{ jumlah_pengeluaran }} pengeluaran
+                    {% if editing_item %}{{ editing_item.kode_pengeluaran }}{% else %}{{ jumlah_pengeluaran }} pengeluaran{% endif %}
                 </div>
             </div>
 
-            <form method="post" class="mt-6 space-y-5">
+            <form method="post" id="kasKeluarForm" class="mt-6 space-y-5">
                 {% csrf_token %}
 
                 {% if form.non_field_errors %}
@@ -247,7 +255,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-slate-700 mb-2">Nominal Alokasi</label>
-                                    <input type="number" min="0" name="alokasi_nominal" value="{{ row.nominal }}" class="allocation-nominal w-full rounded-2xl border border-slate-300 px-4 py-3 bg-white" placeholder="0">
+                                    <input type="number" min="1" step="1" inputmode="numeric" autocomplete="off" name="alokasi_nominal" value="{{ row.nominal }}" class="allocation-nominal w-full rounded-2xl border border-slate-300 px-4 py-3 bg-white" placeholder="Masukkan angka">
                                 </div>
                                 <div class="pt-8">
                                     <button type="button" class="remove-allocation-row inline-flex items-center justify-center px-4 py-3 rounded-2xl bg-rose-100 hover:bg-rose-200 text-rose-700 text-sm font-semibold">
@@ -257,11 +265,38 @@
                             </div>
                         {% endfor %}
                     </div>
+
+                    <div class="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                        <div class="grid gap-3 md:grid-cols-3 text-sm">
+                            <div>
+                                <div class="text-slate-500">Jumlah Pengeluaran</div>
+                                <div id="allocationTotalTarget" class="mt-1 font-semibold text-slate-900">Rp 0</div>
+                            </div>
+                            <div>
+                                <div class="text-slate-500">Total Alokasi</div>
+                                <div id="allocationTotalUsed" class="mt-1 font-semibold text-blue-700">Rp 0</div>
+                            </div>
+                            <div>
+                                <div class="text-slate-500">Selisih</div>
+                                <div id="allocationTotalDiff" class="mt-1 font-semibold text-amber-700">Rp 0</div>
+                            </div>
+                        </div>
+                        <p id="allocationHelpText" class="mt-3 text-xs text-slate-500">
+                            Jika memakai alokasi dana, total alokasi harus sama dengan jumlah pengeluaran.
+                        </p>
+                    </div>
                 </div>
 
-                <button type="submit" class="inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-semibold shadow-sm">
-                    Simpan Pengeluaran
-                </button>
+                <div class="flex flex-wrap gap-3">
+                    <button type="submit" class="inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-semibold shadow-sm">
+                        {% if editing_item %}Simpan Perubahan{% else %}Simpan Pengeluaran{% endif %}
+                    </button>
+                    {% if editing_item %}
+                        <a href="{% url 'bendahara:kas_sekolah' %}{% if current_semester %}?semester={{ current_semester.id }}{% endif %}" class="inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold shadow-sm">
+                            Batal Edit
+                        </a>
+                    {% endif %}
+                </div>
             </form>
         </div>
 
@@ -345,6 +380,11 @@
                                 {% if row.kas_keluar.keterangan %}
                                     <div class="mt-2 text-xs text-slate-500">{{ row.kas_keluar.keterangan }}</div>
                                 {% endif %}
+                                <div class="mt-3 flex flex-wrap gap-2">
+                                    <a href="{% url 'bendahara:kas_keluar_update' row.kas_keluar.pk %}{% if current_semester %}?semester={{ current_semester.id }}{% endif %}" class="inline-flex items-center justify-center px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold shadow-sm">
+                                        Edit
+                                    </a>
+                                </div>
                             </div>
                         {% empty %}
                             <div class="px-5 py-6 text-center text-slate-500">Belum ada kas keluar.</div>
@@ -390,11 +430,18 @@
     (function () {
         const allocationRows = document.getElementById('allocationRows');
         const addButton = document.getElementById('addAllocationRow');
-        if (!allocationRows || !addButton) {
+        const amountInput = document.getElementById('id_jumlah');
+        const totalTarget = document.getElementById('allocationTotalTarget');
+        const totalUsed = document.getElementById('allocationTotalUsed');
+        const totalDiff = document.getElementById('allocationTotalDiff');
+        const helpText = document.getElementById('allocationHelpText');
+        const form = document.getElementById('kasKeluarForm');
+        if (!allocationRows || !addButton || !amountInput || !form) {
             return;
         }
 
         const optionHtml = `{% for jenis in available_allocation_jenis %}<option value="{{ jenis.id }}">{{ jenis.nama }}</option>{% endfor %}`;
+        const formatRupiah = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
 
         const buildRow = () => {
             const wrapper = document.createElement('div');
@@ -409,7 +456,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-2">Nominal Alokasi</label>
-                    <input type="number" min="0" name="alokasi_nominal" class="allocation-nominal w-full rounded-2xl border border-slate-300 px-4 py-3 bg-white" placeholder="0">
+                    <input type="number" min="1" step="1" inputmode="numeric" autocomplete="off" name="alokasi_nominal" class="allocation-nominal w-full rounded-2xl border border-slate-300 px-4 py-3 bg-white" placeholder="Masukkan angka">
                 </div>
                 <div class="pt-8">
                     <button type="button" class="remove-allocation-row inline-flex items-center justify-center px-4 py-3 rounded-2xl bg-rose-100 hover:bg-rose-200 text-rose-700 text-sm font-semibold">
@@ -420,8 +467,83 @@
             return wrapper;
         };
 
+        const getAllocationState = () => {
+            const rows = Array.from(allocationRows.querySelectorAll('.allocation-row'));
+            const usedTypes = new Set();
+            let target = Number(amountInput.value || 0);
+            let used = 0;
+            let hasPartial = false;
+            let hasDuplicate = false;
+            let hasAnyAllocation = false;
+
+            rows.forEach((row) => {
+                const jenis = row.querySelector('select[name="alokasi_jenis"]')?.value || '';
+                const nominal = row.querySelector('input[name="alokasi_nominal"]')?.value || '';
+                if (jenis || nominal) {
+                    hasAnyAllocation = true;
+                }
+                if ((jenis && !nominal) || (!jenis && nominal)) {
+                    hasPartial = true;
+                }
+                if (jenis) {
+                    if (usedTypes.has(jenis)) {
+                        hasDuplicate = true;
+                    }
+                    usedTypes.add(jenis);
+                }
+                used += Number(nominal || 0);
+            });
+
+            return {
+                target,
+                used,
+                diff: target - used,
+                hasPartial,
+                hasDuplicate,
+                hasAnyAllocation,
+            };
+        };
+
+        const updateAllocationSummary = () => {
+            const state = getAllocationState();
+            totalTarget.textContent = formatRupiah(state.target);
+            totalUsed.textContent = formatRupiah(state.used);
+            totalDiff.textContent = formatRupiah(Math.abs(state.diff));
+            totalDiff.className = 'mt-1 font-semibold ' + (
+                state.diff === 0 ? 'text-emerald-700' : state.diff > 0 ? 'text-amber-700' : 'text-red-700'
+            );
+
+            if (!state.hasAnyAllocation) {
+                helpText.textContent = 'Jika memakai alokasi dana, total alokasi harus sama dengan jumlah pengeluaran.';
+                helpText.className = 'mt-3 text-xs text-slate-500';
+                return;
+            }
+
+            if (state.hasPartial) {
+                helpText.textContent = 'Masih ada baris alokasi yang belum lengkap. Isi jenis dan nominalnya sekaligus.';
+                helpText.className = 'mt-3 text-xs text-rose-600';
+                return;
+            }
+
+            if (state.hasDuplicate) {
+                helpText.textContent = 'Jenis pembayaran yang sama tidak perlu diulang. Gabungkan nominalnya dalam satu baris.';
+                helpText.className = 'mt-3 text-xs text-rose-600';
+                return;
+            }
+
+            if (state.diff !== 0) {
+                helpText.textContent = 'Total alokasi belum sama dengan jumlah pengeluaran.';
+                helpText.className = 'mt-3 text-xs text-amber-700';
+                return;
+            }
+
+            helpText.textContent = 'Total alokasi sudah sesuai dengan jumlah pengeluaran.';
+            helpText.className = 'mt-3 text-xs text-emerald-700';
+        };
+
         addButton.addEventListener('click', () => {
             allocationRows.appendChild(buildRow());
+            updateAllocationSummary();
         });
 
         allocationRows.addEventListener('click', (event) => {
@@ -434,11 +556,31 @@
             if (rows.length === 1) {
                 rows[0].querySelector('select[name="alokasi_jenis"]').value = '';
                 rows[0].querySelector('input[name="alokasi_nominal"]').value = '';
+                updateAllocationSummary();
                 return;
             }
 
             button.closest('.allocation-row')?.remove();
+            updateAllocationSummary();
         });
+
+        allocationRows.addEventListener('input', updateAllocationSummary);
+        allocationRows.addEventListener('change', updateAllocationSummary);
+        amountInput.addEventListener('input', updateAllocationSummary);
+
+        form.addEventListener('submit', (event) => {
+            const state = getAllocationState();
+            if (!state.hasAnyAllocation) {
+                return;
+            }
+            if (state.hasPartial || state.hasDuplicate || state.diff !== 0) {
+                event.preventDefault();
+                updateAllocationSummary();
+                window.alert('Periksa lagi nominal dan alokasi dana. Total alokasi harus sama dengan jumlah pengeluaran, tanpa baris ganda atau kosong sebagian.');
+            }
+        });
+
+        updateAllocationSummary();
     })();
 </script>
 {% endblock %}

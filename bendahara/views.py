@@ -586,6 +586,128 @@ def build_kas_keluar_display_rows(kas_keluar_items):
     return rows
 
 
+def build_kas_sekolah_page_context(*, form, selected_semester, editing_item=None):
+    semester_list = Semester.objects.all()
+
+    pembayaran_queryset = Pembayaran.objects.select_related(
+        'tagihan__siswa',
+        'tagihan__jenis',
+        'tagihan__semester',
+        'transaksi',
+    ).order_by('-tanggal_bayar', '-pk')
+    kas_keluar_queryset = (
+        KasKeluar.objects.select_related('semester', 'jenis_pembayaran')
+        .prefetch_related('alokasi_set__jenis_pembayaran')
+        .order_by('-tanggal_pengeluaran', '-id')
+    )
+
+    if selected_semester:
+        pembayaran_queryset = pembayaran_queryset.filter(tagihan__semester=selected_semester)
+        kas_keluar_queryset = kas_keluar_queryset.filter(semester=selected_semester)
+
+    pembayaran_items = list(pembayaran_queryset)
+    kas_keluar_items = list(kas_keluar_queryset)
+    kas_keluar_rows = build_kas_keluar_display_rows(kas_keluar_items)
+    cash_position_filtered = get_cash_position_summary(selected_semester)
+    cash_position_overall = get_cash_position_summary()
+
+    kategori_summary_map = {}
+    for item in kas_keluar_items:
+        kategori_summary_map[item.kategori] = kategori_summary_map.get(item.kategori, 0) + item.jumlah
+    kategori_summary = [
+        {'kategori': kategori, 'total': total}
+        for kategori, total in sorted(kategori_summary_map.items(), key=lambda value: value[1], reverse=True)
+    ]
+
+    jenis_summary_map = {}
+    jenis_queryset = JenisPembayaran.objects.filter(aktif=True).order_by('nama')
+    for jenis in jenis_queryset:
+        jenis_summary_map[jenis.id] = {
+            'jenis': jenis,
+            'target': 0,
+            'masuk': 0,
+            'keluar': 0,
+            'sisa_tagihan': 0,
+            'saldo_dana': 0,
+        }
+
+    tagihan_for_summary = Tagihan.objects.select_related('jenis', 'semester').prefetch_related('pembayaran_set')
+    if selected_semester:
+        tagihan_for_summary = tagihan_for_summary.filter(semester=selected_semester)
+
+    for tagihan in tagihan_for_summary:
+        if tagihan.jenis_id not in jenis_summary_map:
+            jenis_summary_map[tagihan.jenis_id] = {
+                'jenis': tagihan.jenis,
+                'target': 0,
+                'masuk': 0,
+                'keluar': 0,
+                'sisa_tagihan': 0,
+                'saldo_dana': 0,
+            }
+        jenis_summary_map[tagihan.jenis_id]['target'] += tagihan.nominal
+        jenis_summary_map[tagihan.jenis_id]['masuk'] += tagihan.total_terbayar
+        jenis_summary_map[tagihan.jenis_id]['sisa_tagihan'] += tagihan.sisa_tagihan
+
+    for item in kas_keluar_rows:
+        for allocation in item['allocation_rows']:
+            jenis = allocation['jenis']
+            if jenis.id not in jenis_summary_map:
+                jenis_summary_map[jenis.id] = {
+                    'jenis': jenis,
+                    'target': 0,
+                    'masuk': 0,
+                    'keluar': 0,
+                    'sisa_tagihan': 0,
+                    'saldo_dana': 0,
+                }
+            jenis_summary_map[jenis.id]['keluar'] += allocation['nominal']
+
+    jenis_keuangan_rows = []
+    for item in jenis_summary_map.values():
+        item['saldo_dana'] = item['masuk'] - item['keluar']
+        if item['target'] <= 0 and item['masuk'] <= 0 and item['keluar'] <= 0:
+            continue
+        item['persen_terpakai'] = (item['keluar'] / item['masuk'] * 100) if item['masuk'] > 0 else 0
+        jenis_keuangan_rows.append(item)
+    jenis_keuangan_rows.sort(key=lambda item: item['masuk'], reverse=True)
+
+    total_kas_masuk_hari_ini = sum(
+        item.jumlah_bayar for item in pembayaran_items if item.tanggal_bayar.date() == localdate()
+    )
+    total_kas_keluar_hari_ini = sum(
+        item.jumlah for item in kas_keluar_items if item.tanggal_pengeluaran == localdate()
+    )
+
+    return {
+        'form': form,
+        'editing_item': editing_item,
+        'allocation_form_rows': form.get_allocation_rows(),
+        'available_allocation_jenis': list(form.available_jenis_queryset),
+        'semester_list': semester_list,
+        'current_semester': selected_semester,
+        'total_target_masuk': cash_position_filtered['total_target_masuk'],
+        'total_realisasi_masuk': cash_position_filtered['total_realisasi_masuk'],
+        'total_pengeluaran': cash_position_filtered['total_pengeluaran'],
+        'saldo_aktual': cash_position_filtered['saldo_aktual'],
+        'sisa_target_belum_masuk': cash_position_filtered['sisa_target_belum_masuk'],
+        'total_target_masuk_keseluruhan': cash_position_overall['total_target_masuk'],
+        'total_realisasi_masuk_keseluruhan': cash_position_overall['total_realisasi_masuk'],
+        'total_pengeluaran_keseluruhan': cash_position_overall['total_pengeluaran'],
+        'saldo_aktual_keseluruhan': cash_position_overall['saldo_aktual'],
+        'sisa_target_belum_masuk_keseluruhan': cash_position_overall['sisa_target_belum_masuk'],
+        'total_kas_masuk_hari_ini': total_kas_masuk_hari_ini,
+        'total_kas_keluar_hari_ini': total_kas_keluar_hari_ini,
+        'jumlah_transaksi_masuk': len(pembayaran_items),
+        'jumlah_pengeluaran': len(kas_keluar_items),
+        'pembayaran_items': pembayaran_items,
+        'kas_keluar_items': kas_keluar_items,
+        'kas_keluar_rows': kas_keluar_rows,
+        'kategori_summary': kategori_summary[:6],
+        'jenis_keuangan_rows': jenis_keuangan_rows[:8],
+    }
+
+
 def format_rupiah(value):
     return f"Rp {int(value or 0):,}"
 
@@ -1232,124 +1354,54 @@ def kas_sekolah(request):
         initial = {'semester': current_semester.pk} if current_semester else None
         form = KasKeluarForm(initial=initial)
 
-    semester_list = Semester.objects.all()
+    context = build_kas_sekolah_page_context(form=form, selected_semester=selected_semester)
+    return render(request, 'bendahara/kas_sekolah.html', context)
 
-    pembayaran_queryset = Pembayaran.objects.select_related(
-        'tagihan__siswa',
-        'tagihan__jenis',
-        'tagihan__semester',
-        'transaksi',
-    ).order_by('-tanggal_bayar', '-pk')
-    kas_keluar_queryset = (
-        KasKeluar.objects.select_related('semester', 'jenis_pembayaran')
-        .prefetch_related('alokasi_set__jenis_pembayaran')
-        .order_by('-tanggal_pengeluaran', '-id')
+
+def kas_keluar_update(request, pk):
+    kas_keluar = get_object_or_404(
+        KasKeluar.objects.prefetch_related('alokasi_set__jenis_pembayaran'),
+        pk=pk,
     )
+    current_semester = get_current_semester(request, source='POST' if request.method == 'POST' else 'GET')
+    selected_semester = kas_keluar.semester or current_semester
 
-    if selected_semester:
-        pembayaran_queryset = pembayaran_queryset.filter(tagihan__semester=selected_semester)
-        kas_keluar_queryset = kas_keluar_queryset.filter(semester=selected_semester)
+    if request.method == 'POST':
+        form = KasKeluarForm(request.POST, instance=kas_keluar)
+        if form.is_valid():
+            with transaction.atomic():
+                updated_kas_keluar = form.save(commit=False)
+                if not updated_kas_keluar.semester and current_semester:
+                    updated_kas_keluar.semester = current_semester
+                updated_kas_keluar.jenis_pembayaran = None
+                updated_kas_keluar.save()
 
-    pembayaran_items = list(pembayaran_queryset)
-    kas_keluar_items = list(kas_keluar_queryset)
-    kas_keluar_rows = build_kas_keluar_display_rows(kas_keluar_items)
-    cash_position_filtered = get_cash_position_summary(selected_semester)
-    cash_position_overall = get_cash_position_summary()
+                updated_kas_keluar.alokasi_set.all().delete()
+                allocation_rows = form.cleaned_data.get('allocation_rows', [])
+                if allocation_rows:
+                    KasKeluarAlokasi.objects.bulk_create([
+                        KasKeluarAlokasi(
+                            kas_keluar=updated_kas_keluar,
+                            jenis_pembayaran=row['jenis'],
+                            nominal=row['nominal'],
+                        )
+                        for row in allocation_rows
+                    ])
 
-    kategori_summary_map = {}
-    for item in kas_keluar_items:
-        kategori_summary_map[item.kategori] = kategori_summary_map.get(item.kategori, 0) + item.jumlah
-    kategori_summary = [
-        {'kategori': kategori, 'total': total}
-        for kategori, total in sorted(kategori_summary_map.items(), key=lambda value: value[1], reverse=True)
-    ]
+            messages.success(request, f"Pengeluaran {updated_kas_keluar.kode_pengeluaran} berhasil diperbarui.")
+            url = redirect('bendahara:kas_sekolah')
+            if updated_kas_keluar.semester:
+                url['Location'] += f'?{semester_query_param(updated_kas_keluar.semester)}'
+            return url
+        messages.error(request, "Perubahan pengeluaran belum tersimpan. Periksa kembali nominal dan alokasinya.")
+    else:
+        form = KasKeluarForm(instance=kas_keluar)
 
-    jenis_summary_map = {}
-    jenis_queryset = JenisPembayaran.objects.filter(aktif=True).order_by('nama')
-    for jenis in jenis_queryset:
-        jenis_summary_map[jenis.id] = {
-            'jenis': jenis,
-            'target': 0,
-            'masuk': 0,
-            'keluar': 0,
-            'sisa_tagihan': 0,
-            'saldo_dana': 0,
-        }
-
-    tagihan_for_summary = Tagihan.objects.select_related('jenis', 'semester').prefetch_related('pembayaran_set')
-    if selected_semester:
-        tagihan_for_summary = tagihan_for_summary.filter(semester=selected_semester)
-
-    for tagihan in tagihan_for_summary:
-        if tagihan.jenis_id not in jenis_summary_map:
-            jenis_summary_map[tagihan.jenis_id] = {
-                'jenis': tagihan.jenis,
-                'target': 0,
-                'masuk': 0,
-                'keluar': 0,
-                'sisa_tagihan': 0,
-                'saldo_dana': 0,
-            }
-        jenis_summary_map[tagihan.jenis_id]['target'] += tagihan.nominal
-        jenis_summary_map[tagihan.jenis_id]['masuk'] += tagihan.total_terbayar
-        jenis_summary_map[tagihan.jenis_id]['sisa_tagihan'] += tagihan.sisa_tagihan
-
-    for item in kas_keluar_rows:
-        for allocation in item['allocation_rows']:
-            jenis = allocation['jenis']
-            if jenis.id not in jenis_summary_map:
-                jenis_summary_map[jenis.id] = {
-                    'jenis': jenis,
-                    'target': 0,
-                    'masuk': 0,
-                    'keluar': 0,
-                    'sisa_tagihan': 0,
-                    'saldo_dana': 0,
-                }
-            jenis_summary_map[jenis.id]['keluar'] += allocation['nominal']
-
-    jenis_keuangan_rows = []
-    for item in jenis_summary_map.values():
-        item['saldo_dana'] = item['masuk'] - item['keluar']
-        if item['target'] <= 0 and item['masuk'] <= 0 and item['keluar'] <= 0:
-            continue
-        item['persen_terpakai'] = (item['keluar'] / item['masuk'] * 100) if item['masuk'] > 0 else 0
-        jenis_keuangan_rows.append(item)
-    jenis_keuangan_rows.sort(key=lambda item: item['masuk'], reverse=True)
-
-    total_kas_masuk_hari_ini = sum(
-        item.jumlah_bayar for item in pembayaran_items if item.tanggal_bayar.date() == localdate()
+    context = build_kas_sekolah_page_context(
+        form=form,
+        selected_semester=selected_semester,
+        editing_item=kas_keluar,
     )
-    total_kas_keluar_hari_ini = sum(
-        item.jumlah for item in kas_keluar_items if item.tanggal_pengeluaran == localdate()
-    )
-
-    context = {
-        'form': form,
-        'allocation_form_rows': form.get_allocation_rows(),
-        'available_allocation_jenis': list(form.available_jenis_queryset),
-        'semester_list': semester_list,
-        'current_semester': selected_semester,
-        'total_target_masuk': cash_position_filtered['total_target_masuk'],
-        'total_realisasi_masuk': cash_position_filtered['total_realisasi_masuk'],
-        'total_pengeluaran': cash_position_filtered['total_pengeluaran'],
-        'saldo_aktual': cash_position_filtered['saldo_aktual'],
-        'sisa_target_belum_masuk': cash_position_filtered['sisa_target_belum_masuk'],
-        'total_target_masuk_keseluruhan': cash_position_overall['total_target_masuk'],
-        'total_realisasi_masuk_keseluruhan': cash_position_overall['total_realisasi_masuk'],
-        'total_pengeluaran_keseluruhan': cash_position_overall['total_pengeluaran'],
-        'saldo_aktual_keseluruhan': cash_position_overall['saldo_aktual'],
-        'sisa_target_belum_masuk_keseluruhan': cash_position_overall['sisa_target_belum_masuk'],
-        'total_kas_masuk_hari_ini': total_kas_masuk_hari_ini,
-        'total_kas_keluar_hari_ini': total_kas_keluar_hari_ini,
-        'jumlah_transaksi_masuk': len(pembayaran_items),
-        'jumlah_pengeluaran': len(kas_keluar_items),
-        'pembayaran_items': pembayaran_items,
-        'kas_keluar_items': kas_keluar_items,
-        'kas_keluar_rows': kas_keluar_rows,
-        'kategori_summary': kategori_summary[:6],
-        'jenis_keuangan_rows': jenis_keuangan_rows[:8],
-    }
     return render(request, 'bendahara/kas_sekolah.html', context)
 
 

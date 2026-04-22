@@ -201,7 +201,7 @@
                                                 <div class="grid md:grid-cols-3 gap-4 mt-4">
                                                     <div>
                                                         <label for="nominal_bulan_{{ row.jenis.id }}_{{ period_row.urutan_periode }}" class="block text-sm font-medium text-slate-700 mb-2">Nominal Bulan Ini</label>
-                                                        <input type="number" min="0" name="nominal_bulan_{{ row.jenis.id }}_{{ period_row.urutan_periode }}" id="nominal_bulan_{{ row.jenis.id }}_{{ period_row.urutan_periode }}" value="{{ period_row.nominal }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                                                        <input type="number" min="1" step="1" inputmode="numeric" autocomplete="off" name="nominal_bulan_{{ row.jenis.id }}_{{ period_row.urutan_periode }}" id="nominal_bulan_{{ row.jenis.id }}_{{ period_row.urutan_periode }}" value="{{ period_row.nominal }}" placeholder="Masukkan angka" class="nominal-input w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500">
                                                     </div>
                                                     <div>
                                                         <label for="jatuh_tempo_bulan_{{ row.jenis.id }}_{{ period_row.urutan_periode }}" class="block text-sm font-medium text-slate-700 mb-2">Jatuh Tempo</label>
@@ -219,7 +219,7 @@
                                     <div class="grid md:grid-cols-2 gap-4">
                                         <div>
                                             <label for="nominal_{{ row.jenis.id }}" class="block text-sm font-medium text-slate-700 mb-2">Nominal</label>
-                                            <input type="number" min="0" name="nominal_{{ row.jenis.id }}" id="nominal_{{ row.jenis.id }}" value="{{ row.nominal }}" class="w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500">
+                                            <input type="number" min="1" step="1" inputmode="numeric" autocomplete="off" name="nominal_{{ row.jenis.id }}" id="nominal_{{ row.jenis.id }}" value="{{ row.nominal }}" placeholder="Masukkan angka" class="nominal-input w-full rounded-xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500">
                                         </div>
                                         <div>
                                             <label for="periode_{{ row.jenis.id }}" class="block text-sm font-medium text-slate-700 mb-2">Periode</label>
@@ -263,6 +263,25 @@
 <script>
     (function () {
         const jenisToggles = Array.from(document.querySelectorAll('.jenis-toggle'));
+        const nominalInputs = Array.from(document.querySelectorAll('.nominal-input'));
+
+        function normalizePositiveInteger(input) {
+            if (!input) {
+                return;
+            }
+
+            const rawValue = `${input.value || ''}`.trim();
+            if (!rawValue) {
+                input.value = '';
+                return;
+            }
+
+            let parsedValue = Number.parseInt(rawValue, 10);
+            if (Number.isNaN(parsedValue) || parsedValue < 1) {
+                parsedValue = 1;
+            }
+            input.value = parsedValue;
+        }
 
         jenisToggles.forEach((toggle) => {
             toggle.addEventListener('change', () => {
@@ -275,6 +294,12 @@
                     periodToggle.checked = toggle.checked;
                 });
             });
+        });
+
+        nominalInputs.forEach((input) => {
+            input.addEventListener('input', () => normalizePositiveInteger(input));
+            input.addEventListener('blur', () => normalizePositiveInteger(input));
+            normalizePositiveInteger(input);
         });
     })();
 </script>

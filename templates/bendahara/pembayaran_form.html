@@ -202,6 +202,9 @@
                                                                 min="0"
                                                                 max="{{ row.tagihan.sisa_tagihan }}"
                                                                 step="1"
+                                                                inputmode="numeric"
+                                                                autocomplete="off"
+                                                                placeholder="Masukkan angka"
                                                                 class="payment-amount w-full min-w-[150px] rounded-2xl border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                                                 data-checkbox-name="pilih_tagihan_{{ row.tagihan.pk }}"
                                                             >
@@ -288,6 +291,9 @@
                                                     min="0"
                                                     max="{{ row.tagihan.sisa_tagihan }}"
                                                     step="1"
+                                                    inputmode="numeric"
+                                                    autocomplete="off"
+                                                    placeholder="Masukkan angka"
                                                     class="payment-amount w-full rounded-2xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                                     data-checkbox-name="pilih_tagihan_{{ row.tagihan.pk }}"
                                                 >
@@ -363,6 +369,35 @@
         const amountInputs = Array.from(document.querySelectorAll('.payment-amount'));
         const fillButtons = Array.from(document.querySelectorAll('.fill-full'));
 
+        function normalizeAmountInput(input) {
+            if (!input) {
+                return;
+            }
+
+            const rawValue = `${input.value || ''}`.trim();
+            if (!rawValue) {
+                input.value = '';
+                return;
+            }
+
+            let parsedValue = Number.parseInt(rawValue, 10);
+            if (Number.isNaN(parsedValue)) {
+                input.value = '';
+                return;
+            }
+
+            if (parsedValue < 0) {
+                parsedValue = 0;
+            }
+
+            const maxValue = Number.parseInt(input.max || '0', 10);
+            if (!Number.isNaN(maxValue) && maxValue > 0 && parsedValue > maxValue) {
+                parsedValue = maxValue;
+            }
+
+            input.value = parsedValue;
+        }
+
         function updateTotal() {
             let total = 0;
             amountInputs.forEach((input) => {
@@ -379,10 +414,16 @@
 
         amountInputs.forEach((input) => {
             input.addEventListener('input', () => {
+                normalizeAmountInput(input);
                 const checkbox = document.querySelector(`[name="${input.dataset.checkboxName}"]`);
-                if (checkbox && input.value) {
+                const normalizedValue = Number(input.value || 0);
+                if (checkbox && normalizedValue > 0) {
                     checkbox.checked = true;
                 }
+                updateTotal();
+            });
+            input.addEventListener('blur', () => {
+                normalizeAmountInput(input);
                 updateTotal();
             });
         });
@@ -405,6 +446,7 @@
             });
         });
 
+        amountInputs.forEach((input) => normalizeAmountInput(input));
         updateTotal();
     })();
 </script>
