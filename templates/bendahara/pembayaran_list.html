@@ -110,15 +110,20 @@
                         </td>
                         <td class="px-6 py-4 text-sm text-slate-700">{{ pembayaran.metode|default:"-" }}</td>
                         <td class="px-6 py-4 text-sm">
-                            {% if pembayaran.transaksi %}
-                                <a href="{% url 'bendahara:transaksi_pembayaran_download' pembayaran.transaksi.pk %}" class="inline-flex items-center px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-800 text-white font-semibold shadow-sm">
-                                    Download Struk
+                            <div class="flex flex-wrap gap-2">
+                                <a href="{% url 'bendahara:pembayaran_update' pembayaran.pk %}{% if semester_aktif %}?semester={{ semester_aktif.id }}{% endif %}" class="inline-flex items-center px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold shadow-sm">
+                                    Edit
                                 </a>
-                            {% else %}
-                                <a href="{% url 'bendahara:pembayaran_download' pembayaran.pk %}" class="inline-flex items-center px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-800 text-white font-semibold shadow-sm">
-                                    Download Kwitansi
-                                </a>
-                            {% endif %}
+                                {% if pembayaran.transaksi %}
+                                    <a href="{% url 'bendahara:transaksi_pembayaran_download' pembayaran.transaksi.pk %}" class="inline-flex items-center px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-800 text-white font-semibold shadow-sm">
+                                        Download Struk
+                                    </a>
+                                {% else %}
+                                    <a href="{% url 'bendahara:pembayaran_download' pembayaran.pk %}" class="inline-flex items-center px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-800 text-white font-semibold shadow-sm">
+                                        Download Kwitansi
+                                    </a>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                 {% empty %}

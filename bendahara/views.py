@@ -16,7 +16,7 @@ from django.utils.timezone import localdate
 from .models import Semester, Siswa, JenisPembayaran, Tagihan, Pembayaran, TransaksiPembayaran, KasKeluar, KasKeluarAlokasi
 from .forms import (
     SiswaForm, JenisPembayaranForm, PembayaranMultiForm,
-    SemesterForm, BulkTagihanForm, KasKeluarForm
+    SemesterForm, BulkTagihanForm, KasKeluarForm, PembayaranEditForm
 )
 
 MONTH_NAMES_ID = [
@@ -2251,6 +2251,89 @@ def pembayaran_create(request):
         'current_semester': selected_semester or current_semester,
         'back_to_detail': redirect_siswa_id is not None,
         'semester_list': semester_list,
+    })
+
+
+def pembayaran_update(request, pk):
+    pembayaran = get_object_or_404(
+        Pembayaran.objects.select_related(
+            'transaksi',
+            'tagihan__siswa',
+            'tagihan__jenis',
+            'tagihan__semester',
+        ),
+        pk=pk,
+    )
+    redirect_siswa_id = request.GET.get('redirect_siswa') or request.POST.get('redirect_siswa')
+    selected_semester = pembayaran.tagihan.semester or get_current_semester(
+        request,
+        source='POST' if request.method == 'POST' else 'GET',
+    )
+    other_payments_total = max(pembayaran.tagihan.total_terbayar - pembayaran.jumlah_bayar, 0)
+    max_editable_amount = max(pembayaran.tagihan.nominal - other_payments_total, 0)
+
+    initial_data = {
+        'jumlah_bayar': pembayaran.jumlah_bayar,
+        'metode': pembayaran.transaksi.metode if pembayaran.transaksi_id else pembayaran.metode,
+        'keterangan': pembayaran.transaksi.keterangan if pembayaran.transaksi_id else pembayaran.keterangan,
+    }
+
+    if request.method == 'POST':
+        form = PembayaranEditForm(request.POST)
+        if form.is_valid():
+            jumlah_bayar = form.cleaned_data['jumlah_bayar']
+            if jumlah_bayar > max_editable_amount:
+                form.add_error(
+                    'jumlah_bayar',
+                    f'Jumlah bayar tidak boleh melebihi Rp {max_editable_amount:,} untuk tagihan ini.',
+                )
+            else:
+                metode = form.cleaned_data['metode'] or None
+                keterangan = form.cleaned_data['keterangan'] or None
+
+                with transaction.atomic():
+                    pembayaran.jumlah_bayar = jumlah_bayar
+
+                    if pembayaran.transaksi_id:
+                        transaksi = pembayaran.transaksi
+                        transaksi.metode = metode
+                        transaksi.keterangan = keterangan
+                        transaksi.save(update_fields=['metode', 'keterangan'])
+                        transaksi.pembayaran_set.update(metode=metode, keterangan=keterangan)
+                        pembayaran.metode = metode
+                        pembayaran.keterangan = keterangan
+                        pembayaran.save(update_fields=['jumlah_bayar', 'metode', 'keterangan'])
+                    else:
+                        pembayaran.metode = metode
+                        pembayaran.keterangan = keterangan
+                        pembayaran.save(update_fields=['jumlah_bayar', 'metode', 'keterangan'])
+
+                messages.success(
+                    request,
+                    f"Pembayaran untuk {pembayaran.tagihan.siswa.nama} berhasil diperbarui.",
+                )
+                if redirect_siswa_id:
+                    url = redirect('bendahara:pembayaran_detail_siswa', pk=redirect_siswa_id)
+                    if selected_semester:
+                        url['Location'] += f'?{semester_query_param(selected_semester)}'
+                    return url
+
+                url = redirect('bendahara:pembayaran_list')
+                if selected_semester:
+                    url['Location'] += f'?{semester_query_param(selected_semester)}'
+                return url
+
+        messages.error(request, "Perubahan pembayaran belum tersimpan. Periksa kembali nominal dan keterangannya.")
+    else:
+        form = PembayaranEditForm(initial=initial_data)
+
+    return render(request, 'bendahara/pembayaran_edit.html', {
+        'form': form,
+        'pembayaran': pembayaran,
+        'redirect_siswa_id': redirect_siswa_id,
+        'current_semester': selected_semester,
+        'max_editable_amount': max_editable_amount,
+        'other_payments_total': other_payments_total,
     })
 
 

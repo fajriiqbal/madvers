@@ -16,6 +16,7 @@ from .views import (
     pembayaran_detail_siswa,
     pembayaran_download,
     pembayaran_list,
+    pembayaran_update,
     transaksi_pembayaran_download,
     siswa_create,
     siswa_delete,
@@ -84,6 +85,7 @@ urlpatterns = [
     # Pembayaran
     path('pembayaran/', pembayaran_list, name='pembayaran_list'),
     path('pembayaran/tambah/', pembayaran_create, name='pembayaran_create'),
+    path('pembayaran/<int:pk>/edit/', pembayaran_update, name='pembayaran_update'),
     path('pembayaran/<int:pk>/download/', pembayaran_download, name='pembayaran_download'),
     path('pembayaran/transaksi/<int:pk>/download/', transaksi_pembayaran_download, name='transaksi_pembayaran_download'),
     path('pembayaran/siswa/<int:pk>/', pembayaran_detail_siswa, name='pembayaran_detail_siswa'),

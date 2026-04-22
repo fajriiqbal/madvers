@@ -146,6 +146,11 @@
                                             <td class="px-6 py-4 text-sm text-slate-700">
                                                 <div>{{ pembayaran.keterangan|default:"-" }}</div>
                                                 <div class="mt-2">
+                                                    <a href="{% url 'bendahara:pembayaran_update' pembayaran.pk %}?redirect_siswa={{ siswa.pk }}{% if semester %}&semester={{ semester.id }}{% endif %}" class="inline-flex items-center px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold shadow-sm">
+                                                        Edit Pembayaran
+                                                    </a>
+                                                </div>
+                                                <div class="mt-2">
                                                     {% if pembayaran.transaksi %}
                                                         <div class="text-xs text-slate-500 mb-2">{{ pembayaran.transaksi.kode_transaksi }}</div>
                                                         <a href="{% url 'bendahara:transaksi_pembayaran_download' pembayaran.transaksi.pk %}" class="inline-flex items-center px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold shadow-sm">

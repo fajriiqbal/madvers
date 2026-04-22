@@ -419,7 +419,7 @@
                         <span class="text-[10px] text-slate-500">05</span>
                     </a>
 
-                    <a href="{% url 'bendahara:pembayaran_list' %}" class="nav-link {% if request.resolver_match.url_name == 'pembayaran_list' or request.resolver_match.url_name == 'pembayaran_create' or request.resolver_match.url_name == 'pembayaran_detail_siswa' or request.resolver_match.url_name == 'pembayaran_download' or request.resolver_match.url_name == 'transaksi_pembayaran_download' %}nav-link-active{% endif %}">
+                    <a href="{% url 'bendahara:pembayaran_list' %}" class="nav-link {% if request.resolver_match.url_name == 'pembayaran_list' or request.resolver_match.url_name == 'pembayaran_create' or request.resolver_match.url_name == 'pembayaran_update' or request.resolver_match.url_name == 'pembayaran_detail_siswa' or request.resolver_match.url_name == 'pembayaran_download' or request.resolver_match.url_name == 'transaksi_pembayaran_download' %}nav-link-active{% endif %}">
                         <span>
                             <span class="nav-kicker">Kas Masuk</span>
                             <span class="nav-label">Pembayaran</span>
@@ -546,6 +546,7 @@
             const overlay = document.getElementById('sidebarOverlay');
             const popupOverlays = Array.from(document.querySelectorAll('[data-popup-overlay]'));
             const searchableSelects = Array.from(document.querySelectorAll('select[data-searchable="true"]'));
+            const currencyInputs = Array.from(document.querySelectorAll('[data-currency-input="true"]'));
             let closeSidebar = () => {};
 
             const hidePageLoader = () => {
@@ -722,8 +723,76 @@
                 });
             });
 
+            const stripNonDigits = (value) => `${value || ''}`.replace(/\D/g, '');
+            const formatCurrencyInput = (value) => {
+                const digits = stripNonDigits(value);
+                if (!digits) {
+                    return '';
+                }
+                return Number.parseInt(digits, 10).toLocaleString('id-ID');
+            };
+
+            const enhanceCurrencyInput = (input) => {
+                if (input.dataset.currencyEnhanced === 'true') {
+                    return;
+                }
+
+                const originalName = input.getAttribute('name');
+                if (!originalName) {
+                    return;
+                }
+
+                const rawInput = document.createElement('input');
+                rawInput.type = 'hidden';
+                rawInput.name = originalName;
+                rawInput.value = stripNonDigits(input.value);
+                rawInput.dataset.currencyMirrorFor = input.id || originalName;
+
+                input.removeAttribute('name');
+                input.type = 'text';
+                input.dataset.currencyEnhanced = 'true';
+                input.dataset.currencyMirrorName = originalName;
+                input.inputMode = 'numeric';
+                input.autocomplete = 'off';
+                input.after(rawInput);
+
+                const syncCurrencyInput = () => {
+                    const minValue = Number.parseInt(input.getAttribute('min') || '0', 10);
+                    const maxValue = Number.parseInt(input.getAttribute('max') || '0', 10);
+                    let digits = stripNonDigits(input.value);
+
+                    if (!digits) {
+                        rawInput.value = '';
+                        input.value = '';
+                        return;
+                    }
+
+                    let parsedValue = Number.parseInt(digits, 10);
+                    if (!Number.isNaN(minValue) && minValue > 0 && parsedValue < minValue) {
+                        parsedValue = minValue;
+                    }
+                    if (!Number.isNaN(maxValue) && maxValue > 0 && parsedValue > maxValue) {
+                        parsedValue = maxValue;
+                    }
+
+                    rawInput.value = parsedValue;
+                    input.value = formatCurrencyInput(parsedValue);
+                };
+
+                input.addEventListener('input', syncCurrencyInput);
+                input.addEventListener('change', syncCurrencyInput);
+                input.addEventListener('blur', syncCurrencyInput);
+                syncCurrencyInput();
+            };
+
+            window.enhanceCurrencyInput = enhanceCurrencyInput;
+            currencyInputs.forEach((input) => enhanceCurrencyInput(input));
+
             document.querySelectorAll('form').forEach((form) => {
                 form.addEventListener('submit', (event) => {
+                    form.querySelectorAll('[data-currency-input="true"]').forEach((input) => {
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                    });
                     const submitter = event.submitter;
                     if (submitter && submitter.dataset.skipLoading === 'true') {
                         return;

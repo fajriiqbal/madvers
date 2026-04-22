@@ -199,11 +199,12 @@
                                                                 id="jumlah_tagihan_{{ row.tagihan.pk }}"
                                                                 name="jumlah_tagihan_{{ row.tagihan.pk }}"
                                                                 value="{{ row.jumlah_input }}"
-                                                                min="0"
+                                                                min="1"
                                                                 max="{{ row.tagihan.sisa_tagihan }}"
                                                                 step="1"
                                                                 inputmode="numeric"
                                                                 autocomplete="off"
+                                                                data-currency-input="true"
                                                                 placeholder="Masukkan angka"
                                                                 class="payment-amount w-full min-w-[150px] rounded-2xl border border-slate-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                                                 data-checkbox-name="pilih_tagihan_{{ row.tagihan.pk }}"
@@ -288,11 +289,12 @@
                                                     id="jumlah_tagihan_{{ row.tagihan.pk }}"
                                                     name="jumlah_tagihan_{{ row.tagihan.pk }}"
                                                     value="{{ row.jumlah_input }}"
-                                                    min="0"
+                                                    min="1"
                                                     max="{{ row.tagihan.sisa_tagihan }}"
                                                     step="1"
                                                     inputmode="numeric"
                                                     autocomplete="off"
+                                                    data-currency-input="true"
                                                     placeholder="Masukkan angka"
                                                     class="payment-amount w-full rounded-2xl border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                                                     data-checkbox-name="pilih_tagihan_{{ row.tagihan.pk }}"
@@ -368,6 +370,10 @@
         const totalElement = document.getElementById('payment-total');
         const amountInputs = Array.from(document.querySelectorAll('.payment-amount'));
         const fillButtons = Array.from(document.querySelectorAll('.fill-full'));
+        const parseNumericValue = (value) => {
+            const digits = `${value || ''}`.replace(/\D/g, '');
+            return digits ? Number.parseInt(digits, 10) : 0;
+        };
 
         function normalizeAmountInput(input) {
             if (!input) {
@@ -380,8 +386,8 @@
                 return;
             }
 
-            let parsedValue = Number.parseInt(rawValue, 10);
-            if (Number.isNaN(parsedValue)) {
+            let parsedValue = parseNumericValue(rawValue);
+            if (!parsedValue) {
                 input.value = '';
                 return;
             }
@@ -390,7 +396,7 @@
                 parsedValue = 0;
             }
 
-            const maxValue = Number.parseInt(input.max || '0', 10);
+            const maxValue = parseNumericValue(input.max || '0');
             if (!Number.isNaN(maxValue) && maxValue > 0 && parsedValue > maxValue) {
                 parsedValue = maxValue;
             }
@@ -402,7 +408,7 @@
             let total = 0;
             amountInputs.forEach((input) => {
                 const checkbox = document.querySelector(`[name="${input.dataset.checkboxName}"]`);
-                const value = Number(input.value || 0);
+                const value = parseNumericValue(input.value || 0);
                 if (checkbox && checkbox.checked && value > 0) {
                     total += value;
                 }
@@ -415,8 +421,9 @@
         amountInputs.forEach((input) => {
             input.addEventListener('input', () => {
                 normalizeAmountInput(input);
+                input.dispatchEvent(new Event('change', { bubbles: true }));
                 const checkbox = document.querySelector(`[name="${input.dataset.checkboxName}"]`);
-                const normalizedValue = Number(input.value || 0);
+                const normalizedValue = parseNumericValue(input.value || 0);
                 if (checkbox && normalizedValue > 0) {
                     checkbox.checked = true;
                 }
@@ -424,6 +431,7 @@
             });
             input.addEventListener('blur', () => {
                 normalizeAmountInput(input);
+                input.dispatchEvent(new Event('change', { bubbles: true }));
                 updateTotal();
             });
         });
@@ -438,6 +446,7 @@
                 const checkbox = document.querySelector(`[name="${button.dataset.checkbox}"]`);
                 if (input) {
                     input.value = button.dataset.value || '';
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
                 }
                 if (checkbox) {
                     checkbox.checked = true;
@@ -446,7 +455,10 @@
             });
         });
 
-        amountInputs.forEach((input) => normalizeAmountInput(input));
+        amountInputs.forEach((input) => {
+            normalizeAmountInput(input);
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        });
         updateTotal();
     })();
 </script>

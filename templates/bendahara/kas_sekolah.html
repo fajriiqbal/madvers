@@ -255,7 +255,7 @@
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-slate-700 mb-2">Nominal Alokasi</label>
-                                    <input type="number" min="1" step="1" inputmode="numeric" autocomplete="off" name="alokasi_nominal" value="{{ row.nominal }}" class="allocation-nominal w-full rounded-2xl border border-slate-300 px-4 py-3 bg-white" placeholder="Masukkan angka">
+                                    <input type="number" min="1" step="1" inputmode="numeric" autocomplete="off" data-currency-input="true" name="alokasi_nominal" value="{{ row.nominal }}" class="allocation-nominal w-full rounded-2xl border border-slate-300 px-4 py-3 bg-white" placeholder="Masukkan angka">
                                 </div>
                                 <div class="pt-8">
                                     <button type="button" class="remove-allocation-row inline-flex items-center justify-center px-4 py-3 rounded-2xl bg-rose-100 hover:bg-rose-200 text-rose-700 text-sm font-semibold">
@@ -442,6 +442,10 @@
 
         const optionHtml = `{% for jenis in available_allocation_jenis %}<option value="{{ jenis.id }}">{{ jenis.nama }}</option>{% endfor %}`;
         const formatRupiah = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
+        const parseNumericValue = (value) => {
+            const digits = `${value || ''}`.replace(/\D/g, '');
+            return digits ? Number.parseInt(digits, 10) : 0;
+        };
 
         const buildRow = () => {
             const wrapper = document.createElement('div');
@@ -456,7 +460,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-2">Nominal Alokasi</label>
-                    <input type="number" min="1" step="1" inputmode="numeric" autocomplete="off" name="alokasi_nominal" class="allocation-nominal w-full rounded-2xl border border-slate-300 px-4 py-3 bg-white" placeholder="Masukkan angka">
+                    <input type="number" min="1" step="1" inputmode="numeric" autocomplete="off" data-currency-input="true" name="alokasi_nominal" class="allocation-nominal w-full rounded-2xl border border-slate-300 px-4 py-3 bg-white" placeholder="Masukkan angka">
                 </div>
                 <div class="pt-8">
                     <button type="button" class="remove-allocation-row inline-flex items-center justify-center px-4 py-3 rounded-2xl bg-rose-100 hover:bg-rose-200 text-rose-700 text-sm font-semibold">
@@ -464,13 +468,17 @@
                     </button>
                 </div>
             `;
+            const currencyInput = wrapper.querySelector('[data-currency-input="true"]');
+            if (currencyInput && typeof window.enhanceCurrencyInput === 'function') {
+                window.enhanceCurrencyInput(currencyInput);
+            }
             return wrapper;
         };
 
         const getAllocationState = () => {
             const rows = Array.from(allocationRows.querySelectorAll('.allocation-row'));
             const usedTypes = new Set();
-            let target = Number(amountInput.value || 0);
+            let target = parseNumericValue(amountInput.value || 0);
             let used = 0;
             let hasPartial = false;
             let hasDuplicate = false;
@@ -478,7 +486,7 @@
 
             rows.forEach((row) => {
                 const jenis = row.querySelector('select[name="alokasi_jenis"]')?.value || '';
-                const nominal = row.querySelector('input[name="alokasi_nominal"]')?.value || '';
+                const nominal = row.querySelector('.allocation-nominal')?.value || '';
                 if (jenis || nominal) {
                     hasAnyAllocation = true;
                 }
@@ -491,7 +499,7 @@
                     }
                     usedTypes.add(jenis);
                 }
-                used += Number(nominal || 0);
+                used += parseNumericValue(nominal || 0);
             });
 
             return {
@@ -555,7 +563,8 @@
             const rows = allocationRows.querySelectorAll('.allocation-row');
             if (rows.length === 1) {
                 rows[0].querySelector('select[name="alokasi_jenis"]').value = '';
-                rows[0].querySelector('input[name="alokasi_nominal"]').value = '';
+                rows[0].querySelector('.allocation-nominal').value = '';
+                rows[0].querySelector('.allocation-nominal').dispatchEvent(new Event('change', { bubbles: true }));
                 updateAllocationSummary();
                 return;
             }

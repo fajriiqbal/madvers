@@ -21,6 +21,12 @@ def positive_integer_attrs(*, placeholder):
     }
 
 
+def currency_input_attrs(*, placeholder):
+    attrs = positive_integer_attrs(placeholder=placeholder)
+    attrs['data-currency-input'] = 'true'
+    return attrs
+
+
 class LoginForm(forms.Form):
     username = forms.CharField(label='Username', max_length=150)
     password = forms.CharField(label='Password', widget=forms.PasswordInput)
@@ -52,7 +58,7 @@ class JenisPembayaranForm(forms.ModelForm):
             'placeholder': 'Contoh: SPP, Jemputan, Wisuda',
         })
         self.fields['nominal_default'].widget.attrs.update(
-            positive_integer_attrs(placeholder='Masukkan nominal default')
+            currency_input_attrs(placeholder='Masukkan nominal default')
         )
         self.fields['jumlah_bulan_per_semester'].widget.attrs.update({
             'min': '1',
@@ -119,7 +125,7 @@ class TagihanForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['nominal'].widget.attrs.update(
-            positive_integer_attrs(placeholder='Masukkan nominal tagihan')
+            currency_input_attrs(placeholder='Masukkan nominal tagihan')
         )
         self.fields['periode'].widget.attrs.update({
             'placeholder': 'Contoh: Juli 2026',
@@ -143,7 +149,7 @@ class PembayaranForm(forms.ModelForm):
         semester_id = kwargs.pop('semester_id', None)
         super().__init__(*args, **kwargs)
         self.fields['jumlah_bayar'].widget.attrs.update(
-            positive_integer_attrs(placeholder='Masukkan jumlah bayar')
+            currency_input_attrs(placeholder='Masukkan jumlah bayar')
         )
         if not semester_id:
             active_semester = Semester.objects.filter(aktif=True).first()
@@ -240,6 +246,28 @@ class PembayaranMultiForm(forms.Form):
         self.fields['keterangan'].widget.attrs.update({'rows': 4})
 
 
+class PembayaranEditForm(forms.Form):
+    jumlah_bayar = forms.IntegerField(label='Jumlah Bayar')
+    metode = forms.CharField(label='Metode', max_length=50, required=False)
+    keterangan = forms.CharField(label='Keterangan', required=False, widget=forms.Textarea)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['jumlah_bayar'].widget.attrs.update(
+            currency_input_attrs(placeholder='Masukkan jumlah bayar yang benar')
+        )
+        self.fields['metode'].widget.attrs.update({
+            'placeholder': 'Contoh: Tunai, Transfer, QRIS',
+        })
+        self.fields['keterangan'].widget.attrs.update({'rows': 4})
+
+    def clean_jumlah_bayar(self):
+        jumlah = self.cleaned_data.get('jumlah_bayar')
+        if jumlah is None or jumlah <= 0:
+            raise forms.ValidationError('Jumlah bayar harus lebih dari 0.')
+        return jumlah
+
+
 class BulkTagihanForm(forms.Form):
     semester = forms.ModelChoiceField(
         queryset=Semester.objects.filter(aktif=True),
@@ -259,7 +287,7 @@ class BulkTagihanForm(forms.Form):
         label='Nominal per Siswa',
         widget=forms.NumberInput(attrs={
             'class': 'form-control',
-            **positive_integer_attrs(placeholder='Masukkan nominal per siswa'),
+            **currency_input_attrs(placeholder='Masukkan nominal per siswa'),
         })
     )
     jatuh_tempo = forms.DateField(
@@ -303,7 +331,7 @@ class KasKeluarForm(forms.ModelForm):
             'placeholder': 'Contoh: Honor, Transport, Konsumsi, ATK',
         })
         self.fields['jumlah'].widget.attrs.update({
-            **positive_integer_attrs(placeholder='Masukkan nominal tanpa titik atau koma'),
+            **currency_input_attrs(placeholder='Masukkan nominal tanpa titik atau koma'),
         })
         self.fields['semester'].queryset = Semester.objects.all().order_by('-tanggal_mulai')
         self.fields['semester'].required = False
