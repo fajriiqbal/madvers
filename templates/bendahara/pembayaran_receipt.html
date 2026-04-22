@@ -194,6 +194,10 @@
                         <span>Rp {{ group.total_bayar|intcomma }}</span>
                     </div>
                     {% if group.is_bulanan %}
+                        <div class="row">
+                            <span><strong>Dibayar Saat Ini</strong></span>
+                            <span></span>
+                        </div>
                         {% for row in group.rows %}
                             <div class="row">
                                 <span>{{ row.periode_label }}</span>
@@ -204,6 +208,32 @@
                                 <span>Rp {{ row.sisa_setelah_bayar|intcomma }}</span>
                             </div>
                         {% endfor %}
+                        {% if group.remaining_rows %}
+                            <div class="row">
+                                <span><strong>Masih Kurang Di Item Ini</strong></span>
+                                <span></span>
+                            </div>
+                            {% for row in group.remaining_rows %}
+                                <div class="row">
+                                    <span>{{ row.periode_label }}</span>
+                                    <span>Rp {{ row.sisa_tagihan|intcomma }}</span>
+                                </div>
+                            {% endfor %}
+                            <div class="row">
+                                <span><strong>Total Sisa {{ group.jenis.nama }}</strong></span>
+                                <span><strong>Rp {{ group.total_sisa_item|intcomma }}</strong></span>
+                            </div>
+                        {% elif group.total_sisa_item > 0 %}
+                            <div class="row">
+                                <span><strong>Total Sisa {{ group.jenis.nama }}</strong></span>
+                                <span><strong>Rp {{ group.total_sisa_item|intcomma }}</strong></span>
+                            </div>
+                        {% else %}
+                            <div class="row">
+                                <span><strong>Status Item</strong></span>
+                                <span><strong>Lunas</strong></span>
+                            </div>
+                        {% endif %}
                     {% else %}
                         {% for row in group.rows %}
                             <div class="row">
