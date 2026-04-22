@@ -105,6 +105,74 @@ def build_tagihan_status(total_nominal, total_terbayar, has_tagihan):
     return 'Cicilan'
 
 
+def get_applicable_jenis_queryset_for_siswa(siswa, *, recurring_only=False, include_ids=None):
+    include_ids = list(include_ids or [])
+    grade = siswa.tingkat_kelas
+    applicable_filter = Q(target_kelas='')
+    if grade:
+        applicable_filter |= Q(target_kelas=grade)
+
+    active_filter = Q(aktif=True) & applicable_filter
+    if recurring_only:
+        active_filter &= Q(wajib_per_semester=True)
+
+    queryset = JenisPembayaran.objects.filter(active_filter)
+    if include_ids:
+        queryset = JenisPembayaran.objects.filter(active_filter | Q(id__in=include_ids))
+
+    return queryset.distinct().order_by('nama')
+
+
+def create_auto_tagihan_for_siswa(siswa, semester=None):
+    semester = semester or get_active_semester()
+    result = {
+        'semester': semester,
+        'created_count': 0,
+        'skipped_count': 0,
+    }
+
+    if not siswa or not siswa.aktif or not semester:
+        return result
+
+    jenis_list = get_applicable_jenis_queryset_for_siswa(siswa, recurring_only=True)
+
+    with transaction.atomic():
+        for jenis in jenis_list:
+            if jenis.is_bulanan:
+                for period in build_monthly_periods(semester, jenis.jumlah_bulan_per_semester):
+                    _, created = Tagihan.objects.get_or_create(
+                        siswa=siswa,
+                        jenis=jenis,
+                        semester=semester,
+                        urutan_periode=period['urutan_periode'],
+                        defaults={
+                            'nominal': jenis.nominal_default,
+                            'periode': period['label'],
+                            'jatuh_tempo': period['jatuh_tempo_default'],
+                        },
+                    )
+                    if created:
+                        result['created_count'] += 1
+                    else:
+                        result['skipped_count'] += 1
+            else:
+                _, created = Tagihan.objects.get_or_create(
+                    siswa=siswa,
+                    jenis=jenis,
+                    semester=semester,
+                    urutan_periode=0,
+                    defaults={
+                        'nominal': jenis.nominal_default,
+                    },
+                )
+                if created:
+                    result['created_count'] += 1
+                else:
+                    result['skipped_count'] += 1
+
+    return result
+
+
 def can_delete_tagihan(tagihan):
     return not tagihan.pembayaran_set.exists()
 
@@ -988,8 +1056,17 @@ def siswa_create(request):
         form = SiswaForm(request.POST)
 
         if form.is_valid():
-            form.save()
-            messages.success(request, "Data siswa berhasil disimpan!")
+            siswa = form.save()
+            auto_tagihan = create_auto_tagihan_for_siswa(siswa)
+            message = "Data siswa berhasil disimpan."
+            if auto_tagihan['semester']:
+                if auto_tagihan['created_count'] > 0:
+                    message += f" {auto_tagihan['created_count']} tagihan otomatis berhasil dibuat."
+                else:
+                    message += " Tagihan otomatis sudah sinkron dengan semester aktif."
+            else:
+                message += " Belum ada semester aktif, jadi tagihan otomatis belum dibuat."
+            messages.success(request, message)
             return redirect('bendahara:siswa_list')
         else:
             messages.error(request, "Form tidak valid, cek kembali input!")
@@ -1134,11 +1211,7 @@ def tagihan_update(request, pk):
         Tagihan.objects.filter(siswa=siswa).select_related('jenis', 'semester').prefetch_related('pembayaran_set')
     )
     existing_type_ids = [tagihan.jenis_id for tagihan in existing_tagihan_all]
-    jenis_list = (
-        JenisPembayaran.objects.filter(Q(aktif=True) | Q(id__in=existing_type_ids))
-        .distinct()
-        .order_by('nama')
-    )
+    jenis_list = get_applicable_jenis_queryset_for_siswa(siswa, include_ids=existing_type_ids)
 
     semester_list = Semester.objects.all()
 
@@ -1754,17 +1827,71 @@ def upload_siswa(request):
                 messages.error(request, "Modul pandas tidak tersedia. Silakan instal dengan: pip install pandas")
                 return redirect('bendahara:siswa_list')
 
-            df = pd.read_excel(file)
+            df = pd.read_excel(file, dtype=str)
+            required_columns = {'nis', 'nama', 'kelas'}
+            missing_columns = required_columns - set(df.columns)
+            if missing_columns:
+                messages.error(
+                    request,
+                    f"Kolom wajib belum lengkap: {', '.join(sorted(missing_columns))}.",
+                )
+                return redirect('bendahara:siswa_list')
+
+            imported_count = 0
+            updated_count = 0
+            empty_row_count = 0
+            auto_created_count = 0
+            auto_skipped_count = 0
 
             for _, row in df.iterrows():
-                Siswa.objects.create(
-                    nis=row['nis'],
-                    nama=row['nama'],
-                    kelas=row['kelas'],
-                    pondok='' if 'pondok' not in df.columns or pd.isna(row.get('pondok')) else str(row.get('pondok')).strip(),
-                )
+                nis = str(row.get('nis', '')).strip()
+                nama = str(row.get('nama', '')).strip()
+                kelas = str(row.get('kelas', '')).strip()
+                pondok = str(row.get('pondok', '')).strip() if 'pondok' in df.columns else ''
 
-            messages.success(request, "Data siswa berhasil diimport!")
+                if nis.lower() == 'nan':
+                    nis = ''
+                if nama.lower() == 'nan':
+                    nama = ''
+                if kelas.lower() == 'nan':
+                    kelas = ''
+                if pondok.lower() == 'nan':
+                    pondok = ''
+
+                if not nis or not nama or not kelas:
+                    empty_row_count += 1
+                    continue
+
+                siswa, created = Siswa.objects.update_or_create(
+                    nis=nis,
+                    defaults={
+                        'nama': nama,
+                        'kelas': kelas,
+                        'pondok': pondok,
+                        'aktif': True,
+                    },
+                )
+                if created:
+                    imported_count += 1
+                else:
+                    updated_count += 1
+
+                auto_tagihan = create_auto_tagihan_for_siswa(siswa)
+                auto_created_count += auto_tagihan['created_count']
+                auto_skipped_count += auto_tagihan['skipped_count']
+
+            message = (
+                f"Import selesai. {imported_count} siswa baru ditambahkan, "
+                f"{updated_count} siswa diperbarui, "
+                f"{auto_created_count} tagihan otomatis dibuat."
+            )
+            if auto_skipped_count:
+                message += f" {auto_skipped_count} tagihan sudah ada."
+            if empty_row_count:
+                message += f" {empty_row_count} baris dilewati karena data wajib kosong."
+            if not get_active_semester():
+                message += " Belum ada semester aktif, sehingga tagihan otomatis tidak dibuat."
+            messages.success(request, message)
 
         except Exception as e:
             messages.error(request, f"Terjadi error: {e}")
@@ -1780,7 +1907,14 @@ def siswa_update(request, pk):
     if request.method == 'POST':
         form = SiswaForm(request.POST, instance=siswa)
         if form.is_valid():
-            form.save()
+            siswa = form.save()
+            auto_tagihan = create_auto_tagihan_for_siswa(siswa)
+            message = "Data siswa berhasil diperbarui."
+            if auto_tagihan['semester'] and auto_tagihan['created_count'] > 0:
+                message += f" {auto_tagihan['created_count']} tagihan baru otomatis ditambahkan."
+            elif not auto_tagihan['semester']:
+                message += " Belum ada semester aktif, jadi sinkronisasi tagihan otomatis dilewati."
+            messages.success(request, message)
             return redirect('bendahara:siswa_list')
     else:
         form = SiswaForm(instance=siswa)
@@ -1842,6 +1976,9 @@ def buat_tagihan_semester(request):
             with transaction.atomic():
                 for siswa in siswa_aktif:
                     for jenis in jenis_pembayaran_list:
+                        if not jenis.applies_to_student(siswa):
+                            continue
+
                         if jenis.is_bulanan:
                             for period in build_monthly_periods(
                                 semester,

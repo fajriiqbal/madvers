@@ -27,6 +27,7 @@ class JenisPembayaranForm(forms.ModelForm):
         fields = [
             'nama',
             'nominal_default',
+            'target_kelas',
             'deskripsi',
             'aktif',
             'wajib_per_semester',
@@ -36,7 +37,14 @@ class JenisPembayaranForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['target_kelas'].label = 'Berlaku untuk kelas'
+        self.fields['target_kelas'].help_text = (
+            'Pilih "Semua Kelas" jika tagihan ini berlaku umum, atau batasi untuk kelas tertentu seperti kelas 9.'
+        )
         self.fields['wajib_per_semester'].label = 'Muncul setiap semester'
+        self.fields['wajib_per_semester'].help_text = (
+            'Aktifkan jika tagihan ini perlu otomatis dibuat saat siswa baru ditambahkan pada semester aktif.'
+        )
         self.fields['is_bulanan'].label = 'Gunakan tagihan per bulan'
         self.fields['jumlah_bulan_per_semester'].label = 'Jumlah bulan per semester'
         self.fields['jumlah_bulan_per_semester'].help_text = (

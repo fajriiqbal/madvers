@@ -19,9 +19,13 @@ class SiswaAdmin(admin.ModelAdmin):
 
 @admin.register(JenisPembayaran)
 class JenisPembayaranAdmin(admin.ModelAdmin):
-    list_display = ('nama', 'nominal_default', 'is_bulanan', 'jumlah_bulan_per_semester', 'wajib_per_semester', 'aktif')
+    list_display = ('nama', 'target_kelas_label', 'nominal_default', 'is_bulanan', 'jumlah_bulan_per_semester', 'wajib_per_semester', 'aktif')
     search_fields = ('nama',)
-    list_filter = ('aktif', 'wajib_per_semester', 'is_bulanan')
+    list_filter = ('aktif', 'wajib_per_semester', 'is_bulanan', 'target_kelas')
+
+    @admin.display(description='Target Kelas')
+    def target_kelas_label(self, obj):
+        return obj.get_target_kelas_display()
 
 
 @admin.register(Tagihan)

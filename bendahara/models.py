@@ -1,3 +1,5 @@
+import re
+
 from django.db import models
 from django.db.models import Sum
 from django.db.models.functions import Coalesce
@@ -33,11 +35,41 @@ class Siswa(models.Model):
     pondok = models.CharField(max_length=100, blank=True, default='')
     aktif = models.BooleanField(default=True)
 
+    @property
+    def tingkat_kelas(self):
+        kelas_value = (self.kelas or '').strip().upper()
+        if not kelas_value:
+            return ''
+
+        normalized = re.sub(r'\s+', '', kelas_value)
+        roman_map = (
+            ('VIII', '8'),
+            ('VII', '7'),
+            ('IX', '9'),
+        )
+
+        for prefix, grade in roman_map:
+            if normalized.startswith(prefix):
+                return grade
+
+        match = re.match(r'(\d+)', normalized)
+        if match:
+            return match.group(1)
+
+        return ''
+
     def __str__(self):
         return self.nama
 
 
 class JenisPembayaran(models.Model):
+    TARGET_KELAS_CHOICES = [
+        ('', 'Semua Kelas'),
+        ('7', 'Khusus Kelas 7'),
+        ('8', 'Khusus Kelas 8'),
+        ('9', 'Khusus Kelas 9'),
+    ]
+
     nama = models.CharField(max_length=100)
     nominal_default = models.IntegerField()
     deskripsi = models.TextField(blank=True, null=True)
@@ -45,6 +77,15 @@ class JenisPembayaran(models.Model):
     wajib_per_semester = models.BooleanField(default=True)  # True jika harus dibayar tiap semester
     is_bulanan = models.BooleanField(default=False)
     jumlah_bulan_per_semester = models.PositiveSmallIntegerField(default=6)
+    target_kelas = models.CharField(
+        max_length=10,
+        blank=True,
+        default='',
+        choices=TARGET_KELAS_CHOICES,
+    )
+
+    def applies_to_student(self, siswa):
+        return not self.target_kelas or self.target_kelas == siswa.tingkat_kelas
 
     def __str__(self):
         return self.nama

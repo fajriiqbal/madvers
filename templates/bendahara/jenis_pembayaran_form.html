@@ -18,9 +18,9 @@
         <div class="panel-card rounded-3xl p-6 bg-[linear-gradient(135deg,rgba(16,185,129,0.08),rgba(184,104,46,0.1))]">
             <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Catatan</div>
             <div class="mt-3 space-y-2 text-sm text-slate-600">
-                <div>1. Gunakan nama yang jelas seperti SPP, Daftar Ulang, atau Seragam.</div>
-                <div>2. Nominal default akan membantu operator saat membuat tagihan.</div>
-                <div>3. Nonaktifkan jika jenis pembayaran sudah tidak dipakai.</div>
+                <div>1. Gunakan nama yang jelas seperti SPP, Daftar Ulang, atau Wisuda.</div>
+                <div>2. Atur target kelas jika tagihan hanya berlaku untuk kelas tertentu seperti kelas 9.</div>
+                <div>3. Jenis aktif dan muncul setiap semester akan otomatis dibuat saat siswa baru ditambahkan.</div>
             </div>
         </div>
     </div>
@@ -78,6 +78,7 @@
 <style>
     #id_nama,
     #id_nominal_default,
+    #id_target_kelas,
     #id_deskripsi,
     #id_jumlah_bulan_per_semester {
         width: 100%;
@@ -94,6 +95,7 @@
 
     #id_nama:focus,
     #id_nominal_default:focus,
+    #id_target_kelas:focus,
     #id_deskripsi:focus,
     #id_jumlah_bulan_per_semester:focus {
         border-color: #10b981;

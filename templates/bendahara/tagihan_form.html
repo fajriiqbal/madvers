@@ -98,6 +98,7 @@
                                             <h4 class="text-base font-semibold text-slate-900">{{ row.jenis.nama }}</h4>
                                             <p class="text-sm text-slate-500">
                                                 Default nominal: Rp {{ row.jenis.nominal_default|intcomma }}
+                                                <span>| {{ row.jenis.get_target_kelas_display }}</span>
                                                 {% if row.is_bulanan %}
                                                     <span class="text-blue-600">| mode bulanan {{ row.jumlah_bulan }} bulan</span>
                                                 {% endif %}
