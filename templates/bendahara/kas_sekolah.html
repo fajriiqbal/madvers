@@ -20,7 +20,7 @@
             <div class="mt-3 space-y-2 text-sm text-slate-600">
                 <div>1. Catat pengeluaran segera setelah dana digunakan.</div>
                 <div>2. Pakai judul dan kategori yang jelas agar laporan mudah diaudit.</div>
-                <div>3. Jika pengeluaran terkait UHB, SPP, atau jenis lain, isi alokasi jenis pembayaran agar rekap per pos dana otomatis terbaca.</div>
+                <div>3. Jika pengeluaran memakai dana dari beberapa pos, bagi nominalnya ke beberapa alokasi agar rekap tetap akurat.</div>
             </div>
         </div>
     </div>
@@ -169,7 +169,8 @@
                                 Rp {{ row.sisa_tagihan|intcomma }}
                             </td>
                             <td class="px-6 py-4 text-sm font-semibold {% if row.saldo_dana >= 0 %}text-blue-700{% else %}text-red-700{% endif %}">
-                                Rp {{ row.saldo_dana|intcomma }}
+                                <div>Rp {{ row.saldo_dana|intcomma }}</div>
+                                <div class="mt-1 text-[11px] text-slate-500">{{ row.persen_terpakai|floatformat:1 }}% dana masuk sudah dipakai</div>
                             </td>
                         </tr>
                     {% empty %}
@@ -190,7 +191,7 @@
                 <div>
                     <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Kas Keluar</div>
                     <h4 class="mt-3 text-lg font-semibold text-slate-900">Catat Pengeluaran Bendahara</h4>
-                    <p class="mt-2 text-sm text-slate-500">Masukkan kebutuhan sekolah seperti ATK, transport, konsumsi, atau operasional lainnya. Jika pengeluaran berasal dari dana jenis pembayaran tertentu, isi alokasinya.</p>
+                    <p class="mt-2 text-sm text-slate-500">Masukkan kebutuhan sekolah seperti ATK, transport, konsumsi, atau operasional lainnya. Satu pengeluaran bisa dibagi ke beberapa sumber dana agar data tidak dobel.</p>
                 </div>
                 <div class="rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-600">
                     {{ jumlah_pengeluaran }} pengeluaran
@@ -218,6 +219,44 @@
                             {% endif %}
                         </div>
                     {% endfor %}
+                </div>
+
+                <div class="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                        <div>
+                            <div class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Alokasi Dana</div>
+                            <h5 class="mt-2 text-base font-semibold text-slate-900">Bagi pengeluaran ke satu atau beberapa jenis pembayaran</h5>
+                            <p class="mt-2 text-sm text-slate-500">Kosongkan bagian ini jika pengeluaran bersifat umum dan tidak mengambil dana dari pos pembayaran tertentu.</p>
+                        </div>
+                        <button type="button" id="addAllocationRow" class="inline-flex items-center justify-center px-4 py-2 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-sm font-semibold">
+                            Tambah Alokasi
+                        </button>
+                    </div>
+
+                    <div class="mt-4 space-y-3" id="allocationRows">
+                        {% for row in allocation_form_rows %}
+                            <div class="allocation-row grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_auto] items-start">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Jenis Pembayaran</label>
+                                    <select name="alokasi_jenis" class="allocation-select w-full rounded-2xl border border-slate-300 px-4 py-3 bg-white">
+                                        <option value="">Pilih jenis pembayaran</option>
+                                        {% for jenis in available_allocation_jenis %}
+                                            <option value="{{ jenis.id }}" {% if row.jenis_id == jenis.id|stringformat:"s" %}selected{% endif %}>{{ jenis.nama }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Nominal Alokasi</label>
+                                    <input type="number" min="0" name="alokasi_nominal" value="{{ row.nominal }}" class="allocation-nominal w-full rounded-2xl border border-slate-300 px-4 py-3 bg-white" placeholder="0">
+                                </div>
+                                <div class="pt-8">
+                                    <button type="button" class="remove-allocation-row inline-flex items-center justify-center px-4 py-3 rounded-2xl bg-rose-100 hover:bg-rose-200 text-rose-700 text-sm font-semibold">
+                                        Hapus
+                                    </button>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
                 </div>
 
                 <button type="submit" class="inline-flex items-center justify-center px-6 py-3 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-semibold shadow-sm">
@@ -285,25 +324,26 @@
                         <p class="text-sm text-slate-500">Semua pengeluaran bendahara sesuai filter semester.</p>
                     </div>
                     <div class="divide-y divide-slate-200">
-                    {% for item in kas_keluar_items %}
+                    {% for row in kas_keluar_rows %}
                             <div class="px-5 py-4">
                                 <div class="flex items-start justify-between gap-4">
                                     <div>
-                                        <div class="text-sm font-semibold text-slate-900">{{ item.judul }}</div>
+                                        <div class="text-sm font-semibold text-slate-900">{{ row.kas_keluar.judul }}</div>
                                         <div class="text-xs text-slate-500">
-                                            {{ item.kategori }} | {{ item.kode_pengeluaran }}
-                                            {% if item.jenis_pembayaran %}
-                                                | Dialokasikan ke {{ item.jenis_pembayaran.nama }}
-                                            {% endif %}
+                                            {{ row.kas_keluar.kategori }} | {{ row.kas_keluar.kode_pengeluaran }}
                                         </div>
                                     </div>
                                     <div class="text-right">
-                                        <div class="text-sm font-semibold text-red-700">Rp {{ item.jumlah|intcomma }}</div>
-                                        <div class="text-xs text-slate-500">{{ item.tanggal_pengeluaran|date:"d M Y" }}</div>
+                                        <div class="text-sm font-semibold text-red-700">Rp {{ row.kas_keluar.jumlah|intcomma }}</div>
+                                        <div class="text-xs text-slate-500">{{ row.kas_keluar.tanggal_pengeluaran|date:"d M Y" }}</div>
                                     </div>
                                 </div>
-                                {% if item.keterangan %}
-                                    <div class="mt-2 text-xs text-slate-500">{{ item.keterangan }}</div>
+                                <div class="mt-2 text-xs text-slate-500">{{ row.allocation_summary }}</div>
+                                {% if row.sisa_belum_dialokasikan > 0 %}
+                                    <div class="mt-2 text-xs font-semibold text-amber-700">Belum dialokasikan: Rp {{ row.sisa_belum_dialokasikan|intcomma }}</div>
+                                {% endif %}
+                                {% if row.kas_keluar.keterangan %}
+                                    <div class="mt-2 text-xs text-slate-500">{{ row.kas_keluar.keterangan }}</div>
                                 {% endif %}
                             </div>
                         {% empty %}
@@ -320,7 +360,6 @@
     #id_judul,
     #id_kategori,
     #id_jumlah,
-    #id_jenis_pembayaran,
     #id_tanggal_pengeluaran,
     #id_semester,
     #id_keterangan {
@@ -339,7 +378,6 @@
     #id_judul:focus,
     #id_kategori:focus,
     #id_jumlah:focus,
-    #id_jenis_pembayaran:focus,
     #id_tanggal_pengeluaran:focus,
     #id_semester:focus,
     #id_keterangan:focus {
@@ -347,4 +385,60 @@
         box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12);
     }
 </style>
+
+<script>
+    (function () {
+        const allocationRows = document.getElementById('allocationRows');
+        const addButton = document.getElementById('addAllocationRow');
+        if (!allocationRows || !addButton) {
+            return;
+        }
+
+        const optionHtml = `{% for jenis in available_allocation_jenis %}<option value="{{ jenis.id }}">{{ jenis.nama }}</option>{% endfor %}`;
+
+        const buildRow = () => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'allocation-row grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_auto] items-start';
+            wrapper.innerHTML = `
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Jenis Pembayaran</label>
+                    <select name="alokasi_jenis" class="allocation-select w-full rounded-2xl border border-slate-300 px-4 py-3 bg-white">
+                        <option value="">Pilih jenis pembayaran</option>
+                        ${optionHtml}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Nominal Alokasi</label>
+                    <input type="number" min="0" name="alokasi_nominal" class="allocation-nominal w-full rounded-2xl border border-slate-300 px-4 py-3 bg-white" placeholder="0">
+                </div>
+                <div class="pt-8">
+                    <button type="button" class="remove-allocation-row inline-flex items-center justify-center px-4 py-3 rounded-2xl bg-rose-100 hover:bg-rose-200 text-rose-700 text-sm font-semibold">
+                        Hapus
+                    </button>
+                </div>
+            `;
+            return wrapper;
+        };
+
+        addButton.addEventListener('click', () => {
+            allocationRows.appendChild(buildRow());
+        });
+
+        allocationRows.addEventListener('click', (event) => {
+            const button = event.target.closest('.remove-allocation-row');
+            if (!button) {
+                return;
+            }
+
+            const rows = allocationRows.querySelectorAll('.allocation-row');
+            if (rows.length === 1) {
+                rows[0].querySelector('select[name="alokasi_jenis"]').value = '';
+                rows[0].querySelector('input[name="alokasi_nominal"]').value = '';
+                return;
+            }
+
+            button.closest('.allocation-row')?.remove();
+        });
+    })();
+</script>
 {% endblock %}

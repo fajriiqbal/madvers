@@ -243,7 +243,46 @@ class KasKeluar(models.Model):
     def __str__(self):
         return self.kode_pengeluaran or f"Kas Keluar #{self.pk}"
 
+    @property
+    def total_alokasi(self):
+        allocations = getattr(self, '_prefetched_objects_cache', {}).get('alokasi_set')
+        if allocations is None:
+            allocations = self.alokasi_set.all()
+        return sum(item.nominal for item in allocations)
+
+    @property
+    def sisa_belum_dialokasikan(self):
+        return max(self.jumlah - self.total_alokasi, 0)
+
     class Meta:
         ordering = ['-tanggal_pengeluaran', '-id']
         verbose_name = 'Kas Keluar'
         verbose_name_plural = 'Kas Keluar'
+
+
+class KasKeluarAlokasi(models.Model):
+    kas_keluar = models.ForeignKey(
+        KasKeluar,
+        on_delete=models.CASCADE,
+        related_name='alokasi_set',
+    )
+    jenis_pembayaran = models.ForeignKey(
+        JenisPembayaran,
+        on_delete=models.CASCADE,
+        related_name='kas_keluar_alokasi_set',
+    )
+    nominal = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.kas_keluar} -> {self.jenis_pembayaran} ({self.nominal})"
+
+    class Meta:
+        ordering = ['id']
+        verbose_name = 'Kas Keluar Alokasi'
+        verbose_name_plural = 'Kas Keluar Alokasi'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['kas_keluar', 'jenis_pembayaran'],
+                name='unique_alokasi_per_jenis_pengeluaran',
+            ),
+        ]

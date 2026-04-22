@@ -13,7 +13,7 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils.timezone import localdate
 
-from .models import Semester, Siswa, JenisPembayaran, Tagihan, Pembayaran, TransaksiPembayaran, KasKeluar
+from .models import Semester, Siswa, JenisPembayaran, Tagihan, Pembayaran, TransaksiPembayaran, KasKeluar, KasKeluarAlokasi
 from .forms import (
     SiswaForm, JenisPembayaranForm, PembayaranMultiForm,
     SemesterForm, BulkTagihanForm, KasKeluarForm
@@ -538,6 +538,51 @@ def build_payment_report_rows(payment_items):
     for row in rows:
         row['periode_summary'] = ', '.join(row['periode_labels'])
 
+    return rows
+
+
+def get_kas_keluar_allocation_rows(kas_keluar):
+    allocations = list(
+        getattr(kas_keluar, '_prefetched_objects_cache', {}).get('alokasi_set', [])
+    )
+    if not allocations:
+        allocations = list(kas_keluar.alokasi_set.select_related('jenis_pembayaran').all())
+
+    if allocations:
+        return [
+            {
+                'jenis': item.jenis_pembayaran,
+                'nominal': item.nominal,
+                'is_legacy': False,
+            }
+            for item in allocations
+        ]
+
+    if kas_keluar.jenis_pembayaran_id:
+        return [{
+            'jenis': kas_keluar.jenis_pembayaran,
+            'nominal': kas_keluar.jumlah,
+            'is_legacy': True,
+        }]
+
+    return []
+
+
+def build_kas_keluar_display_rows(kas_keluar_items):
+    rows = []
+    for item in kas_keluar_items:
+        allocation_rows = get_kas_keluar_allocation_rows(item)
+        total_alokasi = sum(row['nominal'] for row in allocation_rows)
+        rows.append({
+            'kas_keluar': item,
+            'allocation_rows': allocation_rows,
+            'allocation_summary': ', '.join(
+                f"{row['jenis'].nama}: {format_rupiah(row['nominal'])}"
+                for row in allocation_rows
+            ) if allocation_rows else 'Pengeluaran umum / belum dialokasikan',
+            'total_alokasi': total_alokasi,
+            'sisa_belum_dialokasikan': max(item.jumlah - total_alokasi, 0),
+        })
     return rows
 
 
@@ -1159,10 +1204,24 @@ def kas_sekolah(request):
     if request.method == 'POST':
         form = KasKeluarForm(request.POST)
         if form.is_valid():
-            kas_keluar = form.save(commit=False)
-            if not kas_keluar.semester and current_semester:
-                kas_keluar.semester = current_semester
-            kas_keluar.save()
+            with transaction.atomic():
+                kas_keluar = form.save(commit=False)
+                if not kas_keluar.semester and current_semester:
+                    kas_keluar.semester = current_semester
+                kas_keluar.jenis_pembayaran = None
+                kas_keluar.save()
+
+                allocation_rows = form.cleaned_data.get('allocation_rows', [])
+                if allocation_rows:
+                    KasKeluarAlokasi.objects.bulk_create([
+                        KasKeluarAlokasi(
+                            kas_keluar=kas_keluar,
+                            jenis_pembayaran=row['jenis'],
+                            nominal=row['nominal'],
+                        )
+                        for row in allocation_rows
+                    ])
+
             messages.success(request, f"Pengeluaran {kas_keluar.kode_pengeluaran} berhasil dicatat.")
             url = redirect('bendahara:kas_sekolah')
             if kas_keluar.semester:
@@ -1181,7 +1240,11 @@ def kas_sekolah(request):
         'tagihan__semester',
         'transaksi',
     ).order_by('-tanggal_bayar', '-pk')
-    kas_keluar_queryset = KasKeluar.objects.select_related('semester', 'jenis_pembayaran').order_by('-tanggal_pengeluaran', '-id')
+    kas_keluar_queryset = (
+        KasKeluar.objects.select_related('semester', 'jenis_pembayaran')
+        .prefetch_related('alokasi_set__jenis_pembayaran')
+        .order_by('-tanggal_pengeluaran', '-id')
+    )
 
     if selected_semester:
         pembayaran_queryset = pembayaran_queryset.filter(tagihan__semester=selected_semester)
@@ -1189,6 +1252,7 @@ def kas_sekolah(request):
 
     pembayaran_items = list(pembayaran_queryset)
     kas_keluar_items = list(kas_keluar_queryset)
+    kas_keluar_rows = build_kas_keluar_display_rows(kas_keluar_items)
     cash_position_filtered = get_cash_position_summary(selected_semester)
     cash_position_overall = get_cash_position_summary()
 
@@ -1230,27 +1294,28 @@ def kas_sekolah(request):
         jenis_summary_map[tagihan.jenis_id]['masuk'] += tagihan.total_terbayar
         jenis_summary_map[tagihan.jenis_id]['sisa_tagihan'] += tagihan.sisa_tagihan
 
-    for item in kas_keluar_items:
-        if not item.jenis_pembayaran_id:
-            continue
-        if item.jenis_pembayaran_id not in jenis_summary_map:
-            jenis_summary_map[item.jenis_pembayaran_id] = {
-                'jenis': item.jenis_pembayaran,
-                'target': 0,
-                'masuk': 0,
-                'keluar': 0,
-                'sisa_tagihan': 0,
-                'saldo_dana': 0,
-            }
-        jenis_summary_map[item.jenis_pembayaran_id]['keluar'] += item.jumlah
+    for item in kas_keluar_rows:
+        for allocation in item['allocation_rows']:
+            jenis = allocation['jenis']
+            if jenis.id not in jenis_summary_map:
+                jenis_summary_map[jenis.id] = {
+                    'jenis': jenis,
+                    'target': 0,
+                    'masuk': 0,
+                    'keluar': 0,
+                    'sisa_tagihan': 0,
+                    'saldo_dana': 0,
+                }
+            jenis_summary_map[jenis.id]['keluar'] += allocation['nominal']
 
     jenis_keuangan_rows = []
     for item in jenis_summary_map.values():
+        item['saldo_dana'] = item['masuk'] - item['keluar']
         if item['target'] <= 0 and item['masuk'] <= 0 and item['keluar'] <= 0:
             continue
-        item['saldo_dana'] = item['masuk'] - item['keluar']
+        item['persen_terpakai'] = (item['keluar'] / item['masuk'] * 100) if item['masuk'] > 0 else 0
         jenis_keuangan_rows.append(item)
-    jenis_keuangan_rows.sort(key=lambda item: item['target'], reverse=True)
+    jenis_keuangan_rows.sort(key=lambda item: item['masuk'], reverse=True)
 
     total_kas_masuk_hari_ini = sum(
         item.jumlah_bayar for item in pembayaran_items if item.tanggal_bayar.date() == localdate()
@@ -1261,6 +1326,8 @@ def kas_sekolah(request):
 
     context = {
         'form': form,
+        'allocation_form_rows': form.get_allocation_rows(),
+        'available_allocation_jenis': list(form.available_jenis_queryset),
         'semester_list': semester_list,
         'current_semester': selected_semester,
         'total_target_masuk': cash_position_filtered['total_target_masuk'],
@@ -1279,6 +1346,7 @@ def kas_sekolah(request):
         'jumlah_pengeluaran': len(kas_keluar_items),
         'pembayaran_items': pembayaran_items,
         'kas_keluar_items': kas_keluar_items,
+        'kas_keluar_rows': kas_keluar_rows,
         'kategori_summary': kategori_summary[:6],
         'jenis_keuangan_rows': jenis_keuangan_rows[:8],
     }
@@ -2765,6 +2833,7 @@ def build_laporan_jenis_pembayaran_context(request):
     total_nominal = 0
     total_terbayar = 0
     total_sisa = 0
+    total_pengeluaran = 0
     jumlah_lunas = 0
     jumlah_belum_lunas = 0
     jumlah_belum_ada_tagihan = 0
@@ -2819,6 +2888,26 @@ def build_laporan_jenis_pembayaran_context(request):
             'detail_status': detail_status,
         })
 
+    alokasi_items = []
+    if selected_jenis:
+        kas_keluar_queryset = (
+            KasKeluar.objects.select_related('semester', 'jenis_pembayaran')
+            .prefetch_related('alokasi_set__jenis_pembayaran')
+            .order_by('-tanggal_pengeluaran', '-id')
+        )
+        if semester:
+            kas_keluar_queryset = kas_keluar_queryset.filter(semester=semester)
+
+        for kas_keluar in kas_keluar_queryset:
+            for allocation in get_kas_keluar_allocation_rows(kas_keluar):
+                if allocation['jenis'].id != selected_jenis.id:
+                    continue
+                total_pengeluaran += allocation['nominal']
+                alokasi_items.append({
+                    'kas_keluar': kas_keluar,
+                    'nominal': allocation['nominal'],
+                })
+
     context = {
         'semester': semester,
         'semester_list': semester_list,
@@ -2830,10 +2919,13 @@ def build_laporan_jenis_pembayaran_context(request):
         'total_nominal': total_nominal,
         'total_terbayar': total_terbayar,
         'total_sisa': total_sisa,
+        'total_pengeluaran': total_pengeluaran,
+        'saldo_dana': total_terbayar - total_pengeluaran,
         'jumlah_lunas': jumlah_lunas,
         'jumlah_belum_lunas': jumlah_belum_lunas,
         'jumlah_belum_ada_tagihan': jumlah_belum_ada_tagihan,
         'jumlah_siswa': len(siswa_status_rows),
+        'alokasi_items': alokasi_items[:8],
     }
     return context
 
@@ -2852,6 +2944,8 @@ def laporan_jenis_pembayaran(request):
         ],
         summary_rows=[
             ('Kas Masuk', format_rupiah(context['total_terbayar'])),
+            ('Dana Terpakai', format_rupiah(context['total_pengeluaran'])),
+            ('Saldo Dana', format_rupiah(context['saldo_dana'])),
             ('Total Tagihan', format_rupiah(context['total_nominal'])),
             ('Total Sisa', format_rupiah(context['total_sisa'])),
             ('Jumlah Lunas', context['jumlah_lunas']),

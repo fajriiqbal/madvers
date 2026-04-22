@@ -1,4 +1,5 @@
 from django import forms
+from itertools import zip_longest
 
 from .models import (
     JenisPembayaran,
@@ -235,7 +236,7 @@ class BulkTagihanForm(forms.Form):
 class KasKeluarForm(forms.ModelForm):
     class Meta:
         model = KasKeluar
-        fields = ['judul', 'kategori', 'jenis_pembayaran', 'jumlah', 'tanggal_pengeluaran', 'semester', 'keterangan']
+        fields = ['judul', 'kategori', 'jumlah', 'tanggal_pengeluaran', 'semester', 'keterangan']
         widgets = {
             'tanggal_pengeluaran': forms.DateInput(attrs={'type': 'date'}),
             'keterangan': forms.Textarea(attrs={'rows': 4}),
@@ -244,16 +245,9 @@ class KasKeluarForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         active_semester = Semester.objects.filter(aktif=True).first()
+        self.available_jenis_queryset = JenisPembayaran.objects.filter(aktif=True).order_by('nama')
         self.fields['kategori'].widget.attrs.update({
             'placeholder': 'Contoh: Honor, Transport, Konsumsi, ATK',
-        })
-        self.fields['jenis_pembayaran'].label = 'Alokasi ke Jenis Pembayaran'
-        self.fields['jenis_pembayaran'].required = False
-        self.fields['jenis_pembayaran'].queryset = JenisPembayaran.objects.filter(aktif=True).order_by('nama')
-        self.fields['jenis_pembayaran'].empty_label = 'Pengeluaran umum / tidak terkait jenis tertentu'
-        self.fields['jenis_pembayaran'].widget.attrs.update({
-            'data-searchable': 'true',
-            'data-search-placeholder': 'Cari jenis pembayaran',
         })
         self.fields['semester'].queryset = Semester.objects.all().order_by('-tanggal_mulai')
         self.fields['semester'].required = False
@@ -269,3 +263,105 @@ class KasKeluarForm(forms.ModelForm):
         if jumlah is None or jumlah <= 0:
             raise forms.ValidationError('Jumlah pengeluaran harus lebih dari 0.')
         return jumlah
+
+    def _get_list_data(self, key):
+        if hasattr(self.data, 'getlist'):
+            return self.data.getlist(key)
+
+        value = self.data.get(key, [])
+        if isinstance(value, list):
+            return value
+        if value in (None, ''):
+            return []
+        return [value]
+
+    def get_allocation_rows(self):
+        if self.is_bound:
+            jenis_values = self._get_list_data('alokasi_jenis')
+            nominal_values = self._get_list_data('alokasi_nominal')
+            rows = []
+            for jenis_value, nominal_value in zip_longest(jenis_values, nominal_values, fillvalue=''):
+                rows.append({
+                    'jenis_id': (jenis_value or '').strip(),
+                    'nominal': (nominal_value or '').strip(),
+                })
+            return rows or [{'jenis_id': '', 'nominal': ''}]
+
+        if self.instance.pk:
+            allocation_rows = [
+                {
+                    'jenis_id': str(item.jenis_pembayaran_id),
+                    'nominal': str(item.nominal),
+                }
+                for item in self.instance.alokasi_set.select_related('jenis_pembayaran').all()
+            ]
+            if allocation_rows:
+                return allocation_rows
+
+            if self.instance.jenis_pembayaran_id:
+                return [{
+                    'jenis_id': str(self.instance.jenis_pembayaran_id),
+                    'nominal': str(self.instance.jumlah),
+                }]
+
+        return [{'jenis_id': '', 'nominal': ''}]
+
+    def clean(self):
+        cleaned_data = super().clean()
+        jumlah = cleaned_data.get('jumlah')
+        if jumlah is None:
+            return cleaned_data
+
+        jenis_values = self._get_list_data('alokasi_jenis')
+        nominal_values = self._get_list_data('alokasi_nominal')
+        jenis_map = {
+            str(item.pk): item
+            for item in self.available_jenis_queryset
+        }
+        allocation_rows = []
+        total_alokasi = 0
+        seen_jenis = set()
+
+        for jenis_value, nominal_value in zip_longest(jenis_values, nominal_values, fillvalue=''):
+            jenis_value = (jenis_value or '').strip()
+            nominal_value = (nominal_value or '').strip()
+
+            if not jenis_value and not nominal_value:
+                continue
+
+            if not jenis_value:
+                raise forms.ValidationError('Pilih jenis pembayaran untuk setiap baris alokasi yang diisi.')
+
+            jenis = jenis_map.get(jenis_value)
+            if jenis is None:
+                raise forms.ValidationError('Jenis pembayaran pada alokasi tidak valid.')
+
+            if jenis.pk in seen_jenis:
+                raise forms.ValidationError(f'Alokasi untuk {jenis.nama} cukup dibuat satu baris saja.')
+            seen_jenis.add(jenis.pk)
+
+            if not nominal_value:
+                raise forms.ValidationError(f'Nominal alokasi untuk {jenis.nama} wajib diisi.')
+
+            try:
+                nominal = int(nominal_value)
+            except ValueError:
+                raise forms.ValidationError(f'Nominal alokasi untuk {jenis.nama} harus berupa angka.')
+
+            if nominal <= 0:
+                raise forms.ValidationError(f'Nominal alokasi untuk {jenis.nama} harus lebih dari 0.')
+
+            allocation_rows.append({
+                'jenis': jenis,
+                'nominal': nominal,
+            })
+            total_alokasi += nominal
+
+        if allocation_rows and total_alokasi != jumlah:
+            raise forms.ValidationError(
+                f'Total alokasi harus sama dengan jumlah pengeluaran, yaitu Rp {jumlah:,}.'
+            )
+
+        cleaned_data['allocation_rows'] = allocation_rows
+        cleaned_data['total_alokasi'] = total_alokasi
+        return cleaned_data
