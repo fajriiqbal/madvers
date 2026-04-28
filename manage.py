@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import os
 import sys
-
+ 
 def main():
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mts_website.settings')
     try:
